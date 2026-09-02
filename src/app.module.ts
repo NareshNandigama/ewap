@@ -8,6 +8,7 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { OrganizationModule } from './organization/organization.module.js';
 import { UserModule } from './user/user.module.js';
 import { WorkflowModule } from './workflow/workflow.module.js';
+import { WorkflowRunModule } from './workflow-run/workflow-run.module.js';
 
 @Module({
   imports: [
@@ -19,7 +20,8 @@ import { WorkflowModule } from './workflow/workflow.module.js';
     PrismaModule,
     OrganizationModule,
     UserModule,
-    WorkflowModule
+    WorkflowModule,
+    WorkflowRunModule
   ],
   controllers: [AppController],
   providers: [AppService],
