@@ -7,6 +7,7 @@ import { ProjectModule } from './project/project.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { OrganizationModule } from './organization/organization.module.js';
 import { UserModule } from './user/user.module.js';
+import { WorkflowModule } from './workflow/workflow.module.js';
 
 @Module({
   imports: [
@@ -17,7 +18,8 @@ import { UserModule } from './user/user.module.js';
     ProjectModule,
     PrismaModule,
     OrganizationModule,
-    UserModule
+    UserModule,
+    WorkflowModule
   ],
   controllers: [AppController],
   providers: [AppService],
