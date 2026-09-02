@@ -3,7 +3,7 @@ import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { HealthModule } from './health/health.module.js';
 import { ConfigModule } from '@nestjs/config';
-import { ProjectsModule } from './projects/projects.module.js';
+import { ProjectModule } from './project/project.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { OrganizationModule } from './organization/organization.module.js';
 import { UserModule } from './user/user.module.js';
@@ -14,7 +14,7 @@ import { UserModule } from './user/user.module.js';
       isGlobal: true,
     }),
     HealthModule,
-    ProjectsModule,
+    ProjectModule,
     PrismaModule,
     OrganizationModule,
     UserModule
