@@ -3,6 +3,7 @@
 /node_modules
 /build
 /src/generated/prisma
+*.tsbuildinfo
 
 # Logs
 logs
