@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { MessagingService } from '../messaging/messaging.service.js';
 
 @Injectable()
 export class WorkflowRunService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+      private readonly messagingService: MessagingService,
+  ) {}
 
   async create(workflowId: string) {
     // 1. Make sure the workflow exists
@@ -21,12 +24,18 @@ export class WorkflowRunService {
     }
 
     // 2. Create a new execution with server-controlled state
-    return this.prisma.workflowRun.create({
+    const run = await this.prisma.workflowRun.create({
       data: {
         workflowId,
         status: 'PENDING',
       },
     });
+    await this.messagingService.publishWorkflowRun(
+      run.id,
+      workflowId,
+    );
+
+    return run;
   }
 
   async findByWorkflow(workflowId: string) {

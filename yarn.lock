@@ -333,6 +333,14 @@
     ora "5.4.1"
     undici "6.20.1"
 
+"@nestjs/microservices@^12.0.1":
+  version "12.0.1"
+  resolved "https://registry.yarnpkg.com/@nestjs/microservices/-/microservices-12.0.1.tgz#89f7a1a70f5ea5b91e86d493d506c4b3fb1f3ba8"
+  integrity sha512-6lHLcxyeVZAim6B1Dv2lusQQY7OuM4dVZptMAHmRT2f8j9ADoWRWBaE+XC1NQzNKKFfdYqAqJkkGaWLbuk4S3w==
+  dependencies:
+    iterare "1.2.1"
+    tslib "2.8.1"
+
 "@nestjs/platform-express@^12.0.1":
   version "12.0.1"
   resolved "https://registry.yarnpkg.com/@nestjs/platform-express/-/platform-express-12.0.1.tgz#87f4e63ecf9a219bed1e890cd9a44ad6b3e48b05"
@@ -1198,6 +1206,18 @@ ajv@8.20.0, ajv@^8.0.0, ajv@^8.12.0:
     fast-uri "^3.0.1"
     json-schema-traverse "^1.0.0"
     require-from-string "^2.0.2"
+
+amqp-connection-manager@^5.0.0:
+  version "5.0.0"
+  resolved "https://registry.yarnpkg.com/amqp-connection-manager/-/amqp-connection-manager-5.0.0.tgz#3bf72f76e1e041768080227fffab1f9baea70baa"
+  integrity sha512-88yQzqa5RSBgnLl504XjvCQJ7d+osskdwvg35Lwm1LRbfLjNU9p7SQUMSP82BB7mseiq9tIUPJ3HE3eXQbpjEw==
+  dependencies:
+    promise-breaker "^6.0.0"
+
+amqplib@^2.0.1:
+  version "2.0.1"
+  resolved "https://registry.yarnpkg.com/amqplib/-/amqplib-2.0.1.tgz#7f14517c1d5f6e8608cf0abf4df817e923eb59b6"
+  integrity sha512-a3P2MgfCf9nzVis12VxWEn0dS6hcqve7dlEAhXDtIWR27BlhtMkILOc+H9aeHjDi6i6r94dYKc2Kx2OFe3avvg==
 
 ansi-escapes@^4.2.1:
   version "4.3.2"
@@ -2908,6 +2928,11 @@ prisma@7.10.0:
     "@prisma/studio-core" "0.33.0"
     mysql2 "3.15.3"
     postgres "3.4.7"
+
+promise-breaker@^6.0.0:
+  version "6.0.0"
+  resolved "https://registry.yarnpkg.com/promise-breaker/-/promise-breaker-6.0.0.tgz#107d2b70f161236abdb4ac5a736c7eb8df489d0f"
+  integrity sha512-BthzO9yTPswGf7etOBiHCVuugs2N01/Q/94dIPls48z2zCmrnDptUUZzfIb+41xq0MnYZ/BzmOd6ikDR4ibNZA==
 
 proper-lockfile@4.1.2, proper-lockfile@^4.1.2:
   version "4.1.2"

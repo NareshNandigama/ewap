@@ -9,6 +9,7 @@ import { OrganizationModule } from './organization/organization.module.js';
 import { UserModule } from './user/user.module.js';
 import { WorkflowModule } from './workflow/workflow.module.js';
 import { WorkflowRunModule } from './workflow-run/workflow-run.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
 
 @Module({
   imports: [
@@ -21,7 +22,8 @@ import { WorkflowRunModule } from './workflow-run/workflow-run.module.js';
     OrganizationModule,
     UserModule,
     WorkflowModule,
-    WorkflowRunModule
+    WorkflowRunModule,
+    MessagingModule
   ],
   controllers: [AppController],
   providers: [AppService],
