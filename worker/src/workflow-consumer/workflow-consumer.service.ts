@@ -6,16 +6,24 @@ import { PrismaService } from '../prisma/prisma.service.js';
 export class WorkflowConsumerService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async executeWorkflow(runId: string): Promise<void> {
+  async executeWorkflow(runId: string,  retryCount: number): Promise<boolean> {
     // Step 1: Mark the workflow run as RUNNING
-    await this.prisma.workflowRun.update({
-      where: {
+    const result = await this.prisma.workflowRun.updateMany({
+    where: {
         id: runId,
-      },
-      data: {
-        status: 'RUNNING',
-      },
+        status: retryCount === 0 ? 'PENDING' : 'FAILED', // Only allow transition to RUNNING if the current status is PENDING or FAILED
+        },
+        data: {
+            status: 'RUNNING',
+        },
     });
+    if (result.count === 0) {
+        console.log(
+        `⏭️ WorkflowRun ${runId} is already being processed or completed. Skipping.`,
+        );
+
+        return false;
+    }
 
     console.log(`🚀 WorkflowRun ${runId} is now RUNNING`);
 
@@ -28,7 +36,7 @@ export class WorkflowConsumerService {
       });
 
       // Temporary failure simulation
-      throw new Error('Simulated workflow execution failure');
+      //throw new Error('Simulated workflow execution failure');
 
       // Step 3: Mark the workflow run as SUCCESS
       await this.prisma.workflowRun.update({
@@ -61,5 +69,6 @@ export class WorkflowConsumerService {
       // RabbitMQ retry / ACK / DLQ behavior.
       throw error;
     }
+    return true;
   }
 }
