@@ -29,6 +29,11 @@ import { MessagingService } from './messaging.service.js';
 
             queueOptions: {
               durable: true,
+               deadLetterExchange:
+                    'workflow.dlq.exchange',
+
+                deadLetterRoutingKey:
+                    'workflow.dead',
             },
           },
         }),

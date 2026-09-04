@@ -6,6 +6,7 @@ import {
 } from '@nestjs/microservices';
 
 import { AppModule } from './app.module.js';
+import { Channel } from 'amqplib';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -13,10 +14,17 @@ async function bootstrap() {
     {
       transport: Transport.RMQ,
       options: {
-        urls: ['amqp://ewap:ewap@localhost:5672'],
-        queue: 'workflow-execution',
+        urls: [process.env.RABBITMQ_URL!],
+        queue: process.env.RABBITMQ_QUEUE!,
+
         queueOptions: {
           durable: true,
+
+          deadLetterExchange:
+            'workflow.dlq.exchange',
+
+          deadLetterRoutingKey:
+            'workflow.dead',
         },
         noAck: false, // Ensure messages are acknowledged after processing
       },

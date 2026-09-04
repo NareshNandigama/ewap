@@ -28,7 +28,7 @@ export class WorkflowConsumerService {
       });
 
       // Temporary failure simulation
-      // throw new Error('Simulated workflow execution failure');
+      throw new Error('Simulated workflow execution failure');
 
       // Step 3: Mark the workflow run as SUCCESS
       await this.prisma.workflowRun.update({
