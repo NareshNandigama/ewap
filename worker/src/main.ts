@@ -18,6 +18,7 @@ async function bootstrap() {
         queueOptions: {
           durable: true,
         },
+        noAck: false, // Ensure messages are acknowledged after processing
       },
     },
   );
