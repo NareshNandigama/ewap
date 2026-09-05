@@ -1,7 +1,11 @@
 # compiled output
-/dist
-/node_modules
-/build
+# Dependencies
+**/node_modules/
+
+# Compiled output
+**/dist/
+**/build/
+
 *.tsbuildinfo
 
 # Prisma generated clients
