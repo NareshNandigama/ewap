@@ -7,6 +7,7 @@ import { WorkflowGateway } from './workflow.gateway.js';
 @Module({
   imports: [PrismaModule],
   controllers: [WorkflowController],
-  providers: [WorkflowService, WorkflowGateway]
+  providers: [WorkflowService, WorkflowGateway],
+  exports: [WorkflowGateway]
 })
 export class WorkflowModule {}

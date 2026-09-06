@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -26,7 +27,7 @@ export class WorkflowConsumerService {
     }
 
     console.log(`🚀 WorkflowRun ${runId} is now RUNNING`);
-
+    await this.notifyStatus(runId, 'RUNNING');
     try {
       // Step 2: Execute the workflow
       console.log(`⚙️ Executing workflow for Run ${runId}...`);
@@ -48,8 +49,8 @@ export class WorkflowConsumerService {
           completedAt: new Date(),
         },
       });
-
       console.log(`✅ WorkflowRun ${runId} completed SUCCESSFULLY`);
+      await this.notifyStatus(runId, 'SUCCESS');
     } catch (error) {
       // Step 4: Mark the workflow run as FAILED
       await this.prisma.workflowRun.update({
@@ -63,7 +64,7 @@ export class WorkflowConsumerService {
       });
 
       console.error(`❌ WorkflowRun ${runId} FAILED`);
-
+      await this.notifyStatus(runId, 'FAILED');
       // Re-throw the error.
       // We will use this later when we implement
       // RabbitMQ retry / ACK / DLQ behavior.
@@ -71,4 +72,23 @@ export class WorkflowConsumerService {
     }
     return true;
   }
+
+  private async notifyStatus(
+  runId: string,
+  status: string,
+): Promise<void> {
+  await fetch(
+    'http://localhost:3000/api/v1/workflow-runs/status',
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        runId,
+        status,
+      }),
+    },
+  );
+}
 }

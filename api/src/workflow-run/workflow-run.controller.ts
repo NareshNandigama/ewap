@@ -1,4 +1,5 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
@@ -7,11 +8,14 @@ import {
 } from '@nestjs/common';
 
 import { WorkflowRunService } from './workflow-run.service.js';
+import { WorkflowStatusDto } from './dto/workflow-status.dto.js';
+import { WorkflowGateway } from '../workflow/workflow.gateway.js';
 
 @Controller()
 export class WorkflowRunController {
   constructor(
     private readonly workflowRunService: WorkflowRunService,
+    private readonly workflowGateway: WorkflowGateway,
   ) {}
 
   @Post('workflows/:workflowId/runs')
@@ -29,7 +33,21 @@ export class WorkflowRunController {
   }
 
   @Get('workflow-runs/:id')
-  findOne(@Param('id', new ParseUUIDPipe()) id: string) {
+  findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
     return this.workflowRunService.findOne(id);
+  }
+
+  @Post('workflow-runs/status')
+  updateStatus(@Body() dto: WorkflowStatusDto) {
+    this.workflowGateway.broadcastWorkflowStatus(
+      dto.runId,
+      dto.status,
+    );
+
+    return {
+      success: true,
+    };
   }
 }
