@@ -1,0 +1,62 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: ewap-postgres
+    environment:
+      POSTGRES_USER: ewap
+      POSTGRES_PASSWORD: ewap_dev_password
+      POSTGRES_DB: ewap
+    ports:
+      - "5433:5432"
+    volumes:
+      - ewap-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ewap -d ewap"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: ewap-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: ewap
+      RABBITMQ_DEFAULT_PASS: ewap_dev_password
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  redis:
+    image: redis:7-alpine
+    container_name: ewap-redis
+    ports:
+      - "6379:6379"
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ewap-api
+    environment:
+      NODE_ENV: production
+
+      DATABASE_URL: postgresql://ewap:ewap_dev_password@postgres:5432/ewap
+
+      RABBITMQ_URL: amqp://ewap:ewap_dev_password@rabbitmq:5672
+      RABBITMQ_QUEUE: ewap-workflows
+      RABBITMQ_RETRY_QUEUE: ewap-workflows-retry
+      RABBITMQ_DLQ: ewap-workflows-dlq
+
+    ports:
+      - "3002:3000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+      redis:
+        condition: service_started
+
+volumes:
+  ewap-postgres-data:
