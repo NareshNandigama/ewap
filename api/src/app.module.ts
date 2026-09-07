@@ -10,11 +10,22 @@ import { UserModule } from './user/user.module.js';
 import { WorkflowModule } from './workflow/workflow.module.js';
 import { WorkflowRunModule } from './workflow-run/workflow-run.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
+import { AiModule } from './ai/ai.module.js';
+import Joi from 'joi';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validationSchema: Joi.object({
+        NODE_ENV: Joi.string().valid('development', 'production').default('development'),
+        PORT: Joi.number().default(3000),
+        APP_NAME: Joi.string().required(),
+        APP_VERSION: Joi.string().required(),
+        DATABASE_URL: Joi.string().required(),
+        RABBITMQ_URL: Joi.string().required(),
+        GEMINI_API_KEY: Joi.string().required(),
+      }),
     }),
     HealthModule,
     ProjectModule,
@@ -23,7 +34,8 @@ import { MessagingModule } from './messaging/messaging.module.js';
     UserModule,
     WorkflowModule,
     WorkflowRunModule,
-    MessagingModule
+    MessagingModule,
+    AiModule
   ],
   controllers: [AppController],
   providers: [AppService],
