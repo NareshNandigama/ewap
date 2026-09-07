@@ -8,6 +8,7 @@ import { WorkflowModule } from '../workflow/workflow.module.js';
 @Module({
   imports: [PrismaModule, MessagingModule,WorkflowModule],
   controllers: [WorkflowRunController],
-  providers: [WorkflowRunService]
+  providers: [WorkflowRunService],
+  exports: [WorkflowRunService],
 })
 export class WorkflowRunModule {}
