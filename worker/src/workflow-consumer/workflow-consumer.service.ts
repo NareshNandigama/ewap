@@ -2,11 +2,14 @@ import 'dotenv/config';
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class WorkflowConsumerService {
-  constructor(private readonly prisma: PrismaService) {}
-
+constructor(
+  private readonly prisma: PrismaService,
+  private readonly configService: ConfigService,
+) {}
   async executeWorkflow(runId: string,  retryCount: number): Promise<boolean> {
     // Step 1: Mark the workflow run as RUNNING
     const result = await this.prisma.workflowRun.updateMany({
@@ -27,6 +30,15 @@ export class WorkflowConsumerService {
     }
 
     console.log(`🚀 WorkflowRun ${runId} is now RUNNING`);
+    
+    await this.prisma.workflowExecutionLog.create({
+      data: {
+        workflowRunId: runId,
+        level: 'INFO',
+        message: 'Workflow execution started',
+      },
+    });
+
     await this.notifyStatus(runId, 'RUNNING');
     try {
       // Step 2: Execute the workflow
@@ -74,21 +86,24 @@ export class WorkflowConsumerService {
   }
 
   private async notifyStatus(
-  runId: string,
-  status: string,
-): Promise<void> {
-  await fetch(
-    'http://localhost:3000/api/v1/workflow-runs/status',
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    runId: string,
+    status: string,
+  ): Promise<void> {
+    const apiBaseUrl =
+      this.configService.getOrThrow<string>('API_BASE_URL');
+
+    await fetch(
+      `${apiBaseUrl}/api/v1/workflow-runs/status`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          runId,
+          status,
+        }),
       },
-      body: JSON.stringify({
-        runId,
-        status,
-      }),
-    },
-  );
-}
+    );
+  }
 }

@@ -25,7 +25,7 @@ import Joi from 'joi';
         DATABASE_URL: Joi.string().required(),
         RABBITMQ_URL: Joi.string().required(),
         GEMINI_API_KEY: Joi.string().required(),
-      }),
+        FRONTEND_URL: Joi.string().required(),        }),
     }),
     HealthModule,
     ProjectModule,

@@ -80,8 +80,10 @@ export default function WorkflowsPage() {
   }, []);
 
   useEffect(() => {
-    const socket = io('http://localhost:3000');
-
+    const socket = io(
+      process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') ??
+        'http://localhost:3000',
+    );
     socket.on('connect', () => {
       console.log('🔌 WebSocket connected:', socket.id);
     });
