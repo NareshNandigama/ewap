@@ -9,13 +9,16 @@ export class WorkflowRunTool {
     private readonly workflowRunService: WorkflowRunService,
   ) {}
 
-  async getWorkflowRun(runId: string) {
+  async getWorkflowRun(runId: string): Promise<ToolResult> {
     try {
       const workflowRun = await this.workflowRunService.findOne(runId);
 
       return {
         success: true,
-        data: workflowRun,
+        data: {
+          workflowRun,
+          executionLogs: workflowRun.logs,
+        },
       };
     } catch (error) {
       return {

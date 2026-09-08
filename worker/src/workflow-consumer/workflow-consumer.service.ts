@@ -47,6 +47,7 @@ constructor(
       await new Promise((resolve) => {
         setTimeout(resolve, 2000);
       });
+      // await this.SimulateFailure(runId); * intentionally failed workflow run for testing purposes
 
       // Temporary failure simulation
       //throw new Error('Simulated workflow execution failure');
@@ -106,4 +107,34 @@ constructor(
       },
     );
   }
+
+  private async SimulateFailure(runId: string): Promise<void> {
+    console.log(`⚙️ Executing workflow for Run ${runId}...`);
+
+    await this.prisma.workflowExecutionLog.create({
+      data: {
+        workflowRunId: runId,
+        level: 'INFO',
+        message: 'Executing workflow step: Fetch customer data',
+      },
+    });
+
+    await new Promise((resolve) => {
+      setTimeout(resolve, 2000);
+    });
+
+    await this.prisma.workflowExecutionLog.create({
+      data: {
+        workflowRunId: runId,
+        level: 'ERROR',
+        message: 'Step failed: Customer API returned HTTP 500',
+        metadata: {
+          step: 'Fetch customer data',
+          httpStatus: 500,
+        },
+      },
+    });
+
+    throw new Error('Customer API returned HTTP 500');
+  }   
 }

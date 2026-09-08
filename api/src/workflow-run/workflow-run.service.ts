@@ -54,6 +54,13 @@ export class WorkflowRunService {
       where: {
         id,
       },
+      include: {
+        logs: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+        },
+      },
     });
 
     if (!workflowRun) {
