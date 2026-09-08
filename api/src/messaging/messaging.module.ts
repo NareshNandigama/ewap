@@ -16,27 +16,41 @@ import { MessagingService } from './messaging.service.js';
 
         inject: [ConfigService],
 
-        useFactory: (configService: ConfigService) => ({
-          transport: Transport.RMQ,
+        useFactory: (configService: ConfigService) => {
+          const enabled =
+            configService.get<boolean>('ENABLE_MESSAGING');
 
-          options: {
-            urls: [
-              configService.get<string>('RABBITMQ_URL')!,
-            ],
+          if (!enabled) {
+            return {
+              transport: Transport.TCP,
+              options: {
+                host: 'localhost',
+                port: 0,
+              },
+            };
+          }
 
-            queue:
-              configService.get<string>('RABBITMQ_QUEUE')!,
+          return {
+            transport: Transport.RMQ,
 
-            queueOptions: {
-              durable: true,
-               deadLetterExchange:
-                    'workflow.dlq.exchange',
+            options: {
+              urls: [
+                configService.get<string>('RABBITMQ_URL')!,
+              ],
 
+              queue:
+                configService.get<string>('RABBITMQ_QUEUE')!,
+
+              queueOptions: {
+                durable: true,
+                deadLetterExchange:
+                  'workflow.dlq.exchange',
                 deadLetterRoutingKey:
-                    'workflow.dead',
+                  'workflow.dead',
+              },
             },
-          },
-        }),
+          };
+        },
       },
     ]),
   ],

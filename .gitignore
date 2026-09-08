@@ -7,6 +7,7 @@
 **/build/
 
 *.tsbuildinfo
+ewap-api-secrets.json
 
 # Prisma generated clients
 **/src/generated/prisma/
@@ -60,3 +61,8 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# AWS deployment artifacts
+api/ecs-secrets-policy.json
+api/ecs-task-definition.json
+api/ecs-task-trust-policy.json
