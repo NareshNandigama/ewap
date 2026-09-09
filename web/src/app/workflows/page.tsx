@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { API_BASE_URL } from '@/lib/constants';
-import { io } from 'socket.io-client';
+import { useCallback, useEffect, useState } from 'react';
 
+import { useWorkflowUpdates } from '@/hooks/useWorkflowUpdates';
 const PROJECT_ID =
   'c297ac01-07c6-4661-b306-8f511e658997';
 
@@ -79,18 +79,11 @@ export default function WorkflowsPage() {
     fetchWorkflows();
   }, []);
 
-  useEffect(() => {
-    const socket = io(
-      process.env.NEXT_PUBLIC_API_BASE_URL?.replace('/api/v1', '') ??
-        'http://localhost:3000',
-    );
-    socket.on('connect', () => {
-      console.log('🔌 WebSocket connected:', socket.id);
-    });
-
-    socket.on('workflow.status.changed', (data) => {
-      console.log('📡 Workflow status:', data);
-
+  const handleStatusChange = useCallback(
+    (data: {
+      runId: string;
+      status: WorkflowRun['status'];
+    }) => {
       setRuns((current) => {
         const existingRun = Object.values(current).find(
           (run) => run.id === data.runId,
@@ -116,16 +109,13 @@ export default function WorkflowsPage() {
       ) {
         setRunningWorkflow(null);
       }
-    });
+    },
+    [],
+  );
 
-    socket.on('connect_error', (error) => {
-      console.error('❌ WebSocket error:', error.message);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
+  useWorkflowUpdates({
+    onStatusChange: handleStatusChange,
+  });
   async function runWorkflow(workflowId: string) {
     try {
       setRunningWorkflow(workflowId);
