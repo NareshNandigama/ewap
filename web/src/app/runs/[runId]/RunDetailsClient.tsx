@@ -5,6 +5,7 @@ import {
   useWorkflowUpdates,
   type WorkflowStatusUpdate,
 } from '@/hooks/useWorkflowUpdates';
+import AiAssistant from './AiAssistant';
 
 type WorkflowExecutionLog = {
   id: string;
@@ -32,6 +33,8 @@ export default function RunDetailsClient({
 }: RunDetailsClientProps) {
 
     const [currentRun, setCurrentRun] = useState(run);
+    const [isAiOpen, setIsAiOpen] = useState(false);   
+
     const handleStatusChange = useCallback(
     (update: WorkflowStatusUpdate) => {
         if (update.runId !== run.id) {
@@ -156,6 +159,41 @@ export default function RunDetailsClient({
             </p>
           </div>
         </div>
+      </div>
+
+      {/* AI Assistant */}
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🤖</span>
+
+              <h2 className="text-lg font-semibold">
+                AI Engineering Assistant
+              </h2>
+
+              <span className="rounded-full bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600">
+                Gemini
+              </span>
+            </div>
+
+            <p className="mt-1 text-sm text-slate-500">
+              Investigate this workflow run using its execution data.
+            </p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsAiOpen((open) => !open)}
+            className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white"
+          >
+            {isAiOpen ? 'Close AI' : 'Ask AI'}
+          </button>
+        </div>
+
+        {isAiOpen && (
+          <AiAssistant runId={currentRun.id} />
+        )}
       </div>
 
       {/* Logs */}
