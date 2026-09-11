@@ -91,7 +91,7 @@ constructor(
     status: string,
   ): Promise<void> {
     const apiBaseUrl =
-      this.configService.getOrThrow<string>('API_BASE_URL');
+      this.configService.getOrThrow<string>('NEXT_PUBLIC_API_BASE_URL');
 
     await fetch(
       `${apiBaseUrl}/api/v1/workflow-runs/status`,
