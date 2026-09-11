@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { ProjectService } from './project.service.js';
-
+import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
 @Controller()
 export class ProjectController {
     constructor(private readonly projectServiece: ProjectService) {}
@@ -18,8 +18,10 @@ export class ProjectController {
         return this.projectServiece.findByOrganization(organizationId);
     }
 
+    @UseGuards(JwtAuthGuard)
     @Get("projects/:id")
     findOne(@Param('id', new ParseUUIDPipe()) id: string) {
         return this.projectServiece.findOne(id);
-    }   
+    }  
+     
 }

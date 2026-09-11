@@ -11,6 +11,7 @@ import { WorkflowModule } from './workflow/workflow.module.js';
 import { WorkflowRunModule } from './workflow-run/workflow-run.module.js';
 import { MessagingModule } from './messaging/messaging.module.js';
 import { AiModule } from './ai/ai.module.js';
+import { AuthModule } from './auth/auth.module.js';
 import Joi from 'joi';
 
 @Module({
@@ -37,7 +38,8 @@ import Joi from 'joi';
     WorkflowModule,
     WorkflowRunModule,
     MessagingModule,
-    AiModule
+    AiModule,
+    AuthModule
   ],
   controllers: [AppController],
   providers: [AppService],

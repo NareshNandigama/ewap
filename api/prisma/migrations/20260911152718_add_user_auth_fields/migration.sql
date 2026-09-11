@@ -1,0 +1,9 @@
+ALTER TABLE "User"
+ADD COLUMN "passwordHash" TEXT,
+ADD COLUMN "role" TEXT NOT NULL DEFAULT 'MEMBER';
+
+UPDATE "User"
+SET "passwordHash" = 'TEMP_PASSWORD_HASH';
+
+ALTER TABLE "User"
+ALTER COLUMN "passwordHash" SET NOT NULL;
