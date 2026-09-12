@@ -2,6 +2,8 @@ import { Body, Controller, Get, Param, ParseUUIDPipe, Post, UseGuards } from '@n
 import { CreateProjectDto } from './dto/create-project.dto.js';
 import { ProjectService } from './project.service.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import type { JwtPayload } from '../auth/types/jwt-payload.js';
 @Controller()
 export class ProjectController {
     constructor(private readonly projectServiece: ProjectService) {}
@@ -20,8 +22,12 @@ export class ProjectController {
 
     @UseGuards(JwtAuthGuard)
     @Get("projects/:id")
-    findOne(@Param('id', new ParseUUIDPipe()) id: string) {
-        return this.projectServiece.findOne(id);
-    }  
-     
+    findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: JwtPayload,
+    ) {
+    return this.projectServiece.findOne(
+        id,
+        user.organizationId,
+    )}
 }

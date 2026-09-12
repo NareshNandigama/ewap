@@ -42,10 +42,11 @@ export class ProjectService {
     });
   }
 
-  async findOne(id: string) {
-    const project = await this.prisma.project.findUnique({
+  async findOne(id: string, organizationId: string) {
+    const project = await this.prisma.project.findFirst({
       where: {
         id,
+        organizationId,
       },
     });
 
