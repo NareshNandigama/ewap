@@ -22,4 +22,20 @@ export class GeminiProvider implements LlmProvider {
 
     return interaction.output_text ?? '';
   }
+  async *generateStream(prompt: string): AsyncIterable<string> {
+    const stream = await this.ai.interactions.create({
+      model: 'gemini-3.6-flash',
+      input: prompt,
+      stream: true,
+    });
+
+    for await (const event of stream) {
+      if (
+        event.event_type === 'step.delta' &&
+        event.delta.type === 'text'
+      ) {
+        yield event.delta.text;
+      }
+    }
+  }
 }

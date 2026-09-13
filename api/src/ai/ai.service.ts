@@ -44,4 +44,39 @@ export class AiService {
       answer,
     };
   }
+  
+  async *askStream(question: string): AsyncIterable<string> {
+    const runIdMatch = question.match(
+      /workflow run ([a-f0-9-]{36})/i,
+    );
+
+    if (runIdMatch) {
+      const toolResult = await this.workflowRunTool.getWorkflowRun(
+        runIdMatch[1],
+      );
+
+      const prompt = `
+      You are the EWAP Engineering Assistant.
+
+      User question:
+      ${question}
+
+      Workflow run data:
+      ${JSON.stringify(toolResult.data, null, 2)}
+
+      Explain the answer using the workflow run data above.
+      Do not invent information that is not present in the data.
+      `;
+
+      for await (const chunk of this.llmProvider.generateStream(prompt)) {
+        yield chunk;
+      }
+
+      return;
+    }
+
+    for await (const chunk of this.llmProvider.generateStream(question)) {
+      yield chunk;
+    }
+  }
 }
