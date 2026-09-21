@@ -1,4 +1,9 @@
-import { IsOptional, IsString, IsUUID, MinLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  IsUUID,
+  MinLength,
+} from 'class-validator';
 
 export class AskAiDto {
   @IsString()
@@ -9,4 +14,7 @@ export class AskAiDto {
   @IsString()
   @IsUUID()
   conversationId?: string;
+
+  @IsUUID()
+  workflowRunId!: string;
 }
