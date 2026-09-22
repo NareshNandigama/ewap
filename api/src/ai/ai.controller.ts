@@ -1,6 +1,8 @@
 import {
   Body,
   Controller,
+  Get,
+  Param,
   Post,
   Res,
   UseGuards,
@@ -22,6 +24,17 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly aiConversationService: AiConversationService,
   ) {}
+
+  @Get('conversations/:conversationId/messages')
+  async getMessages(
+    @Param('conversationId') conversationId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.aiConversationService.getMessages(
+      conversationId,
+      user.sub,
+    );
+  }
 
   @Post('ask')
   async ask(
