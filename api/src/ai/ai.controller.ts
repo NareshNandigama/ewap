@@ -4,6 +4,7 @@ import {
   Get,
   Param,
   Post,
+  Query,
   Res,
   UseGuards,
 } from '@nestjs/common';
@@ -25,6 +26,17 @@ export class AiController {
     private readonly aiConversationService: AiConversationService,
   ) {}
 
+  @Get('conversations')
+  async getConversationByWorkflowRun(
+    @Query('workflowRunId') workflowRunId: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.aiConversationService.getConversationByWorkflowRun(
+      workflowRunId,
+      user.sub,
+    );
+  }
+  
   @Get('conversations/:conversationId/messages')
   async getMessages(
     @Param('conversationId') conversationId: string,

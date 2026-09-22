@@ -17,7 +17,21 @@ export class AiConversationService {
       },
     });
   }
-
+  
+  async getConversationByWorkflowRun(
+    workflowRunId: string,
+    userId: string,
+  ) {
+    return this.prisma.aiConversation.findFirst({
+      where: {
+        workflowRunId,
+        userId,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
   async getConversation(
     conversationId: string,
     userId: string,
