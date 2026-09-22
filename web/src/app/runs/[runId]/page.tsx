@@ -1,4 +1,3 @@
-import { API_BASE_URL } from '@/lib/constants';
 import RunDetailsClient from './RunDetailsClient';
 
 type WorkflowExecutionLog = {
@@ -29,8 +28,14 @@ export default async function RunDetailsPage({
 }: RunDetailsPageProps) {
   const { runId } = await params;
 
+  const apiUrl = process.env.EWAP_API_URL;
+
+  if (!apiUrl) {
+    throw new Error('EWAP_API_URL is not configured');
+  }
+
   const response = await fetch(
-    `${API_BASE_URL}/workflow-runs/${runId}`,
+    `${apiUrl}/api/v1/workflow-runs/${runId}`,
     {
       cache: 'no-store',
     },
