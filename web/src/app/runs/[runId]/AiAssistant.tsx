@@ -1,6 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { API_BASE_URL } from '@/lib/constants';
+import { getAccessToken } from '@/lib/auth/auth';
 
 type AiAssistantProps = {
   runId: string;
@@ -54,16 +56,23 @@ export default function AiAssistant({
     setAiQuestion('');
 
     try {
+      const accessToken = getAccessToken();
+      if (!accessToken) {
+        throw new Error('Authentication required');
+      }
+
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE_URL}/api/v1/ai/ask/stream`,
+        `${API_BASE_URL}/ai/ask/stream`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-            question: `${question}\n\nWorkflow Run ${runId}`,
-          }),
+          question,
+          workflowRunId: runId,
+        }),
           signal: controller.signal,
         },
       );
