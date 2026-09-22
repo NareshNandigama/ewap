@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/auth/auth';
 
@@ -14,14 +14,132 @@ type AiMessage = {
   content: string;
 };
 
+type Conversation = {
+  id: string;
+  workflowRunId: string;
+};
+
+type ApiAiMessage = {
+  id: string;
+  role: 'USER' | 'ASSISTANT';
+  content: string;
+  createdAt: string;
+};
+
 export default function AiAssistant({
   runId,
 }: AiAssistantProps) {
   const [aiQuestion, setAiQuestion] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [messages, setMessages] = useState<AiMessage[]>([]);
+  const [isHistoryLoading, setIsHistoryLoading] =
+    useState(true);
+  const [messages, setMessages] = useState<AiMessage[]>(
+    [],
+  );
+  const [conversationId, setConversationId] = useState<
+    string | null
+  >(null);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const abortControllerRef =
+    useRef<AbortController | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadConversation = async () => {
+      setIsHistoryLoading(true);
+
+      try {
+        const accessToken = getAccessToken();
+
+        if (!accessToken) {
+          throw new Error('Authentication required');
+        }
+
+        const conversationResponse = await fetch(
+          `${API_BASE_URL}/ai/conversations?workflowRunId=${encodeURIComponent(
+            runId,
+          )}`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        );
+
+        if (!conversationResponse.ok) {
+          throw new Error(
+            'Failed to load AI conversation',
+          );
+        }
+
+        const conversation: Conversation | null =
+          await conversationResponse.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!conversation) {
+          setConversationId(null);
+          setMessages([]);
+          return;
+        }
+
+        setConversationId(conversation.id);
+
+        const messagesResponse = await fetch(
+          `${API_BASE_URL}/ai/conversations/${conversation.id}/messages`,
+          {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+          },
+        );
+
+        if (!messagesResponse.ok) {
+          throw new Error(
+            'Failed to load AI messages',
+          );
+        }
+
+        const data: ApiAiMessage[] =
+          await messagesResponse.json();
+
+        if (cancelled) {
+          return;
+        }
+
+        setMessages(
+          data.map((message) => ({
+            id: message.id,
+            role:
+              message.role === 'USER'
+                ? 'user'
+                : 'assistant',
+            content: message.content,
+          })),
+        );
+      } catch (error) {
+        if (!cancelled) {
+          console.error(
+            '❌ Failed to load AI conversation:',
+            error,
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setIsHistoryLoading(false);
+        }
+      }
+    };
+
+    loadConversation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [runId]);
 
   const askAi = async () => {
     const question = aiQuestion.trim();
@@ -38,7 +156,6 @@ export default function AiAssistant({
     const userMessageId = crypto.randomUUID();
     const assistantMessageId = crypto.randomUUID();
 
-    // Add user message and empty assistant message together.
     setMessages((current) => [
       ...current,
       {
@@ -57,6 +174,7 @@ export default function AiAssistant({
 
     try {
       const accessToken = getAccessToken();
+
       if (!accessToken) {
         throw new Error('Authentication required');
       }
@@ -70,9 +188,12 @@ export default function AiAssistant({
             Authorization: `Bearer ${accessToken}`,
           },
           body: JSON.stringify({
-          question,
-          workflowRunId: runId,
-        }),
+            question,
+            workflowRunId: runId,
+            ...(conversationId
+              ? { conversationId }
+              : {}),
+          }),
           signal: controller.signal,
         },
       );
@@ -81,8 +202,17 @@ export default function AiAssistant({
         throw new Error('AI request failed');
       }
 
+      const responseConversationId =
+        response.headers.get('X-Conversation-Id');
+
+      if (responseConversationId) {
+        setConversationId(responseConversationId);
+      }
+
       if (!response.body) {
-        throw new Error('Response body is not readable');
+        throw new Error(
+          'Response body is not readable',
+        );
       }
 
       const reader = response.body.getReader();
@@ -115,7 +245,6 @@ export default function AiAssistant({
         );
       }
 
-      // Flush any remaining bytes held by the decoder.
       const remainingChunk = decoder.decode();
 
       if (remainingChunk) {
@@ -141,14 +270,18 @@ export default function AiAssistant({
         return;
       }
 
-      console.error('❌ AI request failed:', error);
+      console.error(
+        '❌ AI request failed:',
+        error,
+      );
 
       setMessages((current) =>
         current.map((message) =>
           message.id === assistantMessageId
             ? {
                 ...message,
-                content: 'Unable to get an AI response.',
+                content:
+                  'Unable to get an AI response.',
               }
             : message,
         ),
@@ -180,7 +313,9 @@ export default function AiAssistant({
             <button
               key={question}
               type="button"
-              onClick={() => setAiQuestion(question)}
+              onClick={() =>
+                setAiQuestion(question)
+              }
               disabled={isAiLoading}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -190,30 +325,11 @@ export default function AiAssistant({
         </div>
       </div>
 
-      <div className="flex gap-3">
-        <input
-          type="text"
-          value={aiQuestion}
-          onChange={(event) => setAiQuestion(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === 'Enter' && !isAiLoading) {
-              askAi();
-            }
-          }}
-          disabled={isAiLoading}
-          placeholder="Why did this workflow fail?"
-          className="flex-1 rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
-        />
-
-        <button
-          type="button"
-          onClick={isAiLoading ? stopAi : askAi}
-          disabled={!isAiLoading && !aiQuestion.trim()}
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isAiLoading ? 'Stop' : 'Send'}
-        </button>
-      </div>
+      {isHistoryLoading && (
+        <p className="mb-4 text-sm text-slate-500">
+          Loading conversation...
+        </p>
+      )}
 
       {messages.length > 0 && (
         <div className="mb-5 mt-5 space-y-4">
@@ -239,6 +355,41 @@ export default function AiAssistant({
           ))}
         </div>
       )}
+
+      <div className="flex gap-3">
+        <input
+          type="text"
+          value={aiQuestion}
+          onChange={(event) =>
+            setAiQuestion(event.target.value)
+          }
+          onKeyDown={(event) => {
+            if (
+              event.key === 'Enter' &&
+              !isAiLoading
+            ) {
+              askAi();
+            }
+          }}
+          disabled={isAiLoading}
+          placeholder="Why did this workflow fail?"
+          className="flex-1 rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+        />
+
+        <button
+          type="button"
+          onClick={
+            isAiLoading ? stopAi : askAi
+          }
+          disabled={
+            !isAiLoading &&
+            !aiQuestion.trim()
+          }
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {isAiLoading ? 'Stop' : 'Send'}
+        </button>
+      </div>
     </div>
   );
 }
