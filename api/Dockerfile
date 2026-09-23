@@ -35,7 +35,7 @@ COPY package.json yarn.lock ./
 
 RUN yarn install --frozen-lockfile --production=true \
     && yarn cache clean \
-    && rm -rf node_modules/prisma node_modules/typescript
+    && rm -rf node_modules/typescript
 
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/generated ./src/generated
