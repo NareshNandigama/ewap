@@ -1,7 +1,10 @@
 'use client';
 
-import { FormEvent, useEffect, useState } from 'react';
-import { API_BASE_URL, ORGANIZATION_ID } from '@/lib/constants';
+import Link from 'next/link';
+import { FormEvent, useCallback, useEffect, useState } from 'react';
+
+import { apiRequest } from '@/lib/api/client';
+import { getOrganizationId } from '@/lib/auth/auth';
 
 type Project = {
   id: string;
@@ -20,36 +23,36 @@ export default function ProjectsPage() {
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const organizationId = getOrganizationId();
 
-  async function fetchProjects() {
+  const fetchProjects = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/organizations/${ORGANIZATION_ID}/projects`,
+      const data = await apiRequest<Project[]>(
+        `/organizations/${organizationId}/projects`,
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch projects');
-      }
-
-      const data: Project[] = await response.json();
       setProjects(data);
     } catch (error) {
       setError(
-        error instanceof Error ? error.message : 'Something went wrong',
+        error instanceof Error
+          ? error.message
+          : 'Unable to load projects',
       );
     } finally {
       setLoading(false);
     }
-  }
-
-  useEffect(() => {
-    fetchProjects();
   }, []);
 
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    void fetchProjects();
+  }, [fetchProjects]);
+
+  async function handleCreateProject(
+    event: FormEvent<HTMLFormElement>,
+  ) {
     event.preventDefault();
 
     if (!name.trim()) {
@@ -61,25 +64,16 @@ export default function ProjectsPage() {
       setCreating(true);
       setError(null);
 
-      const response = await fetch(
-        `${API_BASE_URL}/organizations/${ORGANIZATION_ID}/projects`,
+      const newProject = await apiRequest<Project>(
+        `/organizations/${organizationId}/projects`,
         {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
           body: JSON.stringify({
             name: name.trim(),
             description: description.trim() || undefined,
           }),
         },
       );
-
-      if (!response.ok) {
-        throw new Error('Failed to create project');
-      }
-
-      const newProject: Project = await response.json();
 
       setProjects((currentProjects) => [
         newProject,
@@ -89,9 +83,20 @@ export default function ProjectsPage() {
       setName('');
       setDescription('');
     } catch (error) {
-      setError(
-        error instanceof Error ? error.message : 'Something went wrong',
-      );
+      const message =
+        error instanceof Error
+          ? error.message
+          : 'Unable to create project';
+
+      if (message.includes('401')) {
+        setError('Your session has expired. Please log in again.');
+      } else if (message.includes('403')) {
+        setError(
+          'You do not have permission to create projects.',
+        );
+      } else {
+        setError(message);
+      }
     } finally {
       setCreating(false);
     }
@@ -99,91 +104,119 @@ export default function ProjectsPage() {
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold tracking-tight">
           Projects
         </h1>
 
-        <p className="mt-2 text-gray-500">
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
           Manage your engineering projects and workflows.
         </p>
       </div>
 
-      {/* Create Project */}
       <form
         onSubmit={handleCreateProject}
-        className="rounded-xl border bg-white p-6 shadow-sm"
+        className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
       >
         <h2 className="text-lg font-semibold">
           Create Project
         </h2>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            placeholder="Project name"
-            className="rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-          />
+          <div>
+            <label
+              htmlFor="project-name"
+              className="mb-2 block text-sm font-medium"
+            >
+              Project name
+            </label>
 
-          <input
-            value={description}
-            onChange={(event) => setDescription(event.target.value)}
-            placeholder="Description"
-            className="rounded-lg border px-4 py-3 outline-none focus:ring-2 focus:ring-black"
-          />
+            <input
+              id="project-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Customer Platform"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-800"
+            />
+          </div>
+
+          <div>
+            <label
+              htmlFor="project-description"
+              className="mb-2 block text-sm font-medium"
+            >
+              Description
+            </label>
+
+            <input
+              id="project-description"
+              value={description}
+              onChange={(event) =>
+                setDescription(event.target.value)
+              }
+              placeholder="Customer-facing engineering platform"
+              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-800"
+            />
+          </div>
         </div>
 
         <button
           type="submit"
           disabled={creating}
-          className="mt-4 rounded-lg bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
         >
           {creating ? 'Creating...' : 'Create Project'}
         </button>
       </form>
 
-      {/* Error */}
       {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+        >
           {error}
         </div>
       )}
 
-      {/* Projects */}
       {loading && (
-        <div className="rounded-xl border bg-white p-8">
+        <div className="rounded-xl border border-gray-200 bg-white p-8 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
           Loading projects...
         </div>
       )}
 
       {!loading && projects.length === 0 && (
-        <div className="rounded-xl border bg-white p-8 text-gray-500">
-          No projects found.
+        <div className="rounded-xl border border-gray-200 bg-white p-8 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          No projects yet. Create your first project above.
         </div>
       )}
 
       {!loading && projects.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
-            <div
+            <Link
               key={project.id}
-              className="rounded-xl border bg-white p-6 shadow-sm transition hover:shadow-md"
+              href={`/projects/${project.id}`}
+              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
             >
               <h2 className="text-xl font-semibold">
                 {project.name}
               </h2>
 
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 {project.description || 'No description'}
               </p>
 
-              <div className="mt-6 text-xs text-gray-400">
+              <div className="mt-6 text-xs text-gray-500">
                 Created{' '}
-                {new Date(project.createdAt).toLocaleDateString()}
+                {new Date(
+                  project.createdAt,
+                ).toLocaleDateString()}
               </div>
-            </div>
+
+              <div className="mt-4 text-sm font-medium">
+                View workflows →
+              </div>
+            </Link>
           ))}
         </div>
       )}
