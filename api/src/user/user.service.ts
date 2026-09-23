@@ -1,8 +1,11 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import bcrypt from 'bcrypt';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
-import bcrypt from 'bcrypt';
 
 @Injectable()
 export class UserService {
@@ -12,11 +15,12 @@ export class UserService {
     organizationId: string,
     createUserDto: CreateUserDto,
   ) {
-    const organization = await this.prisma.organization.findUnique({
-      where: {
-        id: organizationId,
-      },
-    });
+    const organization =
+      await this.prisma.organization.findUnique({
+        where: {
+          id: organizationId,
+        },
+      });
 
     if (!organization) {
       throw new NotFoundException(
@@ -24,13 +28,38 @@ export class UserService {
       );
     }
 
-    return this.prisma.user.create({
-      data: {
-        name: createUserDto.name,
-        email: createUserDto.email,
-        passwordHash: await bcrypt.hash(createUserDto.password, 12),
-        organizationId,
-      },
+    const passwordHash = await bcrypt.hash(
+      createUserDto.password,
+      12,
+    );
+
+    return this.prisma.$transaction(async (tx) => {
+      const userCount = await tx.user.count({
+        where: {
+          organizationId,
+        },
+      });
+
+      const role = userCount === 0 ? 'ADMIN' : 'MEMBER';
+
+      return tx.user.create({
+        data: {
+          name: createUserDto.name,
+          email: createUserDto.email,
+          passwordHash,
+          organizationId,
+          role,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          organizationId: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
     });
   }
 
@@ -39,6 +68,15 @@ export class UserService {
       where: {
         organizationId,
       },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        organizationId: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
   }
 
@@ -46,6 +84,15 @@ export class UserService {
     const user = await this.prisma.user.findUnique({
       where: {
         id,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        organizationId: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
