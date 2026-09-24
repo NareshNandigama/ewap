@@ -1,61 +1,44 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { ClientsModule, Transport } from '@nestjs/microservices';
+import { ClientProxy, ClientProxyFactory, Transport } from '@nestjs/microservices';
 
 import { MessagingService } from './messaging.service.js';
 
 @Module({
-  imports: [
-    ConfigModule,
+  imports: [ConfigModule],
 
-    ClientsModule.registerAsync([
-      {
-        name: 'RABBITMQ_SERVICE',
+  providers: [
+    {
+      provide: 'RABBITMQ_SERVICE',
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService): ClientProxy | undefined => {
+        const enabled =
+          configService.get<boolean>('ENABLE_MESSAGING') ?? true;
 
-        imports: [ConfigModule],
+        if (!enabled) {
+          return undefined;
+        }
 
-        inject: [ConfigService],
-
-        useFactory: (configService: ConfigService) => {
-          const enabled =
-            configService.get<boolean>('ENABLE_MESSAGING');
-
-          if (!enabled) {
-            return {
-              transport: Transport.TCP,
-              options: {
-                host: 'localhost',
-                port: 0,
-              },
-            };
-          }
-
-          return {
-            transport: Transport.RMQ,
-
-            options: {
-              urls: [
-                configService.get<string>('RABBITMQ_URL')!,
-              ],
-
-              queue:
-                configService.get<string>('RABBITMQ_QUEUE')!,
-
-              queueOptions: {
-                durable: true,
-                deadLetterExchange:
-                  'workflow.dlq.exchange',
-                deadLetterRoutingKey:
-                  'workflow.dead',
-              },
+        return ClientProxyFactory.create({
+          transport: Transport.RMQ,
+          options: {
+            urls: [
+              configService.getOrThrow<string>('RABBITMQ_URL'),
+            ],
+            queue:
+              configService.getOrThrow<string>('RABBITMQ_QUEUE'),
+            queueOptions: {
+              durable: true,
+              deadLetterExchange: 'workflow.dlq.exchange',
+              deadLetterRoutingKey: 'workflow.dead',
             },
-          };
-        },
+          },
+        });
       },
-    ]),
-  ],
+    },
 
-  providers: [MessagingService],
+    MessagingService,
+  ],
 
   exports: [MessagingService],
 })
