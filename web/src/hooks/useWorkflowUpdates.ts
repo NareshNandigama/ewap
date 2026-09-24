@@ -17,17 +17,21 @@ type UseWorkflowUpdatesOptions = {
   onStatusChange: (update: WorkflowStatusUpdate) => void;
 };
 
+const WEBSOCKET_URL =
+  process.env.NEXT_PUBLIC_WEBSOCKET_URL ??
+  'http://localhost:3000';
+
 export function useWorkflowUpdates({
   onStatusChange,
 }: UseWorkflowUpdatesOptions) {
   useEffect(() => {
-    const socket = io('http://localhost:3000', {
+    const socket = io(WEBSOCKET_URL, {
       transports: ['websocket'],
     });
 
     socket.on('connect', () => {
       console.log(
-        '🔌 Workflow Updates WebSocket connected:',
+        'Workflow Updates WebSocket connected:',
         socket.id,
       );
     });
@@ -35,20 +39,21 @@ export function useWorkflowUpdates({
     socket.on(
       'workflow.status.changed',
       (data: WorkflowStatusUpdate) => {
-        console.log('📡 Workflow status update:', data);
-
         onStatusChange(data);
       },
     );
 
     socket.on('connect_error', (error) => {
       console.error(
-        '❌ Workflow Updates WebSocket error:',
+        'Workflow Updates WebSocket error:',
         error.message,
       );
     });
 
     return () => {
+      socket.off('workflow.status.changed');
+      socket.off('connect');
+      socket.off('connect_error');
       socket.disconnect();
     };
   }, [onStatusChange]);

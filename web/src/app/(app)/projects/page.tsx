@@ -23,6 +23,7 @@ export default function ProjectsPage() {
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
   const organizationId = getOrganizationId();
 
   const fetchProjects = useCallback(async () => {
@@ -44,7 +45,7 @@ export default function ProjectsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [organizationId]);
 
   useEffect(() => {
     void fetchProjects();
@@ -105,28 +106,36 @@ export default function ProjectsPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
           Projects
+        </p>
+
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+          Engineering Projects
         </h1>
 
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Manage your engineering projects and workflows.
+        <p className="mt-2 text-sm text-slate-600">
+          Manage engineering projects and their workflows.
         </p>
       </div>
 
       <form
         onSubmit={handleCreateProject}
-        className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+        className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
       >
-        <h2 className="text-lg font-semibold">
+        <h2 className="text-lg font-semibold text-slate-950">
           Create Project
         </h2>
+
+        <p className="mt-1 text-sm text-slate-500">
+          Create a workspace for related engineering workflows.
+        </p>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2">
           <div>
             <label
               htmlFor="project-name"
-              className="mb-2 block text-sm font-medium"
+              className="mb-2 block text-sm font-medium text-slate-700"
             >
               Project name
             </label>
@@ -136,14 +145,14 @@ export default function ProjectsPage() {
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder="Customer Platform"
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-800"
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
           </div>
 
           <div>
             <label
               htmlFor="project-description"
-              className="mb-2 block text-sm font-medium"
+              className="mb-2 block text-sm font-medium text-slate-700"
             >
               Description
             </label>
@@ -155,7 +164,7 @@ export default function ProjectsPage() {
                 setDescription(event.target.value)
               }
               placeholder="Customer-facing engineering platform"
-              className="w-full rounded-lg border border-gray-300 bg-white px-4 py-3 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-gray-500 focus:ring-2 focus:ring-gray-200 dark:border-gray-700 dark:bg-gray-950 dark:text-gray-100 dark:placeholder:text-gray-500 dark:focus:border-gray-500 dark:focus:ring-gray-800"
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
           </div>
         </div>
@@ -163,7 +172,7 @@ export default function ProjectsPage() {
         <button
           type="submit"
           disabled={creating}
-          className="mt-5 rounded-lg bg-gray-900 px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-gray-100 dark:text-gray-900 dark:hover:bg-gray-300"
+          className="mt-5 rounded-lg bg-slate-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {creating ? 'Creating...' : 'Create Project'}
         </button>
@@ -172,21 +181,27 @@ export default function ProjectsPage() {
       {error && (
         <div
           role="alert"
-          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300"
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
         >
           {error}
         </div>
       )}
 
       {loading && (
-        <div className="rounded-xl border border-gray-200 bg-white p-8 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+        <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
           Loading projects...
         </div>
       )}
 
       {!loading && projects.length === 0 && (
-        <div className="rounded-xl border border-gray-200 bg-white p-8 text-gray-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
-          No projects yet. Create your first project above.
+        <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
+          <h2 className="font-semibold text-slate-950">
+            No projects yet
+          </h2>
+
+          <p className="mt-2 text-sm text-slate-600">
+            Create your first engineering project above.
+          </p>
         </div>
       )}
 
@@ -196,24 +211,24 @@ export default function ProjectsPage() {
             <Link
               key={project.id}
               href={`/projects/${project.id}`}
-              className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+              className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md"
             >
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-lg font-semibold text-slate-950">
                 {project.name}
               </h2>
 
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              <p className="mt-2 text-sm text-slate-600">
                 {project.description || 'No description'}
               </p>
 
-              <div className="mt-6 text-xs text-gray-500">
+              <div className="mt-6 text-xs text-slate-500">
                 Created{' '}
                 {new Date(
                   project.createdAt,
                 ).toLocaleDateString()}
               </div>
 
-              <div className="mt-4 text-sm font-medium">
+              <div className="mt-4 text-sm font-semibold text-slate-700">
                 View workflows →
               </div>
             </Link>

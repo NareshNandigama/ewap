@@ -19,9 +19,11 @@ type WorkflowRun = {
   createdAt: string;
   completedAt: string | null;
   status: WorkflowRunStatus;
+
   workflow: {
     id: string;
     name: string;
+
     project: {
       id: string;
       name: string;
@@ -102,13 +104,13 @@ export default function RunsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8 text-slate-900">
+    <div className="space-y-8">
       <div>
-        <p className="text-sm font-semibold text-slate-500">
-          Execution
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
+          Runs
         </p>
 
-        <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-900">
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
           Workflow Runs
         </h1>
 
@@ -118,7 +120,7 @@ export default function RunsPage() {
       </div>
 
       {error && (
-        <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -133,7 +135,7 @@ export default function RunsPage() {
 
       {!loading && !error && runs.length === 0 && (
         <div className="rounded-xl border border-dashed border-slate-300 bg-white p-12 text-center shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">
+          <h2 className="text-lg font-semibold text-slate-950">
             No workflow runs yet
           </h2>
 
@@ -144,7 +146,7 @@ export default function RunsPage() {
 
           <Link
             href="/workflows"
-            className="mt-5 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="mt-5 inline-flex rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             View workflows
           </Link>
@@ -168,7 +170,7 @@ export default function RunsPage() {
                 className="grid gap-4 px-6 py-5 transition hover:bg-slate-50 md:grid-cols-[1fr_1fr_180px_140px] md:items-center md:gap-6"
               >
                 <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-900">
+                  <p className="truncate font-semibold text-slate-950">
                     {run.workflow.name}
                   </p>
 

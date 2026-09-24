@@ -39,8 +39,10 @@ type Workflow = {
 export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
+
   const [runningWorkflow, setRunningWorkflow] =
     useState<string | null>(null);
+
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -153,7 +155,7 @@ export default function WorkflowsPage() {
         return 'bg-red-100 text-red-700';
 
       case 'CANCELLED':
-        return 'bg-gray-100 text-gray-700';
+        return 'bg-slate-100 text-slate-600';
 
       case 'PENDING':
       default:
@@ -162,10 +164,14 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="space-y-8 text-slate-900">
+    <div className="space-y-8">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
+        <p className="text-sm font-semibold uppercase tracking-wide text-blue-600">
           Workflows
+        </p>
+
+        <h1 className="mt-2 text-2xl font-bold tracking-tight text-slate-950">
+          Engineering Workflows
         </h1>
 
         <p className="mt-2 text-sm text-slate-600">
@@ -188,7 +194,7 @@ export default function WorkflowsPage() {
 
       {!loading && workflows.length === 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="font-semibold text-slate-900">
+          <h2 className="font-semibold text-slate-950">
             No workflows yet
           </h2>
 
@@ -199,7 +205,7 @@ export default function WorkflowsPage() {
 
           <Link
             href="/projects"
-            className="mt-5 inline-flex rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700"
+            className="mt-5 inline-flex rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             View projects
           </Link>
@@ -210,6 +216,7 @@ export default function WorkflowsPage() {
         <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
           {workflows.map((workflow) => {
             const latestRun = workflow.runs[0];
+
             const isRunning =
               runningWorkflow === workflow.id;
 
@@ -222,7 +229,7 @@ export default function WorkflowsPage() {
                   <div className="min-w-0">
                     <Link
                       href={`/workflows/${workflow.id}`}
-                      className="text-lg font-semibold text-slate-900 transition hover:text-slate-600"
+                      className="text-lg font-semibold text-slate-950 transition hover:text-blue-600"
                     >
                       {workflow.name}
                     </Link>
@@ -253,7 +260,7 @@ export default function WorkflowsPage() {
 
                       <Link
                         href={`/runs/${latestRun.id}`}
-                        className="inline-block font-medium text-slate-700 hover:text-slate-900"
+                        className="inline-block font-medium text-slate-700 transition hover:text-slate-950"
                       >
                         {new Date(
                           latestRun.createdAt,
@@ -270,7 +277,7 @@ export default function WorkflowsPage() {
                 <div className="mt-6 flex gap-3">
                   <Link
                     href={`/workflows/${workflow.id}`}
-                    className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-center text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+                    className="flex-1 rounded-lg border border-slate-300 px-4 py-2.5 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
                   >
                     View details
                   </Link>
@@ -281,9 +288,11 @@ export default function WorkflowsPage() {
                       runWorkflow(workflow.id)
                     }
                     disabled={isRunning}
-                    className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isRunning ? 'Starting...' : 'Run workflow'}
+                    {isRunning
+                      ? 'Starting...'
+                      : 'Run workflow'}
                   </button>
                 </div>
               </div>
