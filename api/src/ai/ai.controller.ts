@@ -36,7 +36,7 @@ export class AiController {
       user.sub,
     );
   }
-  
+
   @Get('conversations/:conversationId/messages')
   async getMessages(
     @Param('conversationId') conversationId: string,
@@ -55,8 +55,10 @@ export class AiController {
   ) {
     return this.aiService.ask(
       dto.question,
+      dto.workflowRunId,
       dto.conversationId,
       user.sub,
+      user.organizationId,
     );
   }
 
@@ -94,18 +96,22 @@ export class AiController {
       'Content-Type',
       'text/plain; charset=utf-8',
     );
+
     res.setHeader(
       'Transfer-Encoding',
       'chunked',
     );
+
     res.setHeader(
       'Cache-Control',
       'no-cache',
     );
+
     res.setHeader(
       'Connection',
       'keep-alive',
     );
+
     res.setHeader(
       'X-Conversation-Id',
       conversationId,
@@ -117,8 +123,10 @@ export class AiController {
       for await (
         const chunk of this.aiService.askStream(
           dto.question,
+          dto.workflowRunId,
           conversationId,
           user.sub,
+          user.organizationId,
         )
       ) {
         assistantAnswer += chunk;
@@ -135,7 +143,6 @@ export class AiController {
       res.end();
     } catch (error) {
       res.end();
-
       throw error;
     }
   }

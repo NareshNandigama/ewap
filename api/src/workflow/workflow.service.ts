@@ -10,11 +10,12 @@ export class WorkflowService {
   async create(
     projectId: string,
     createWorkflowDto: CreateWorkflowDto,
+    organizationId: string,
   ) {
-    // 1. Make sure the parent Project exists
-    const project = await this.prisma.project.findUnique({
+    const project = await this.prisma.project.findFirst({
       where: {
         id: projectId,
+        organizationId,
       },
     });
 
@@ -24,7 +25,6 @@ export class WorkflowService {
       );
     }
 
-    // 2. Create the Workflow under that Project
     return this.prisma.workflow.create({
       data: {
         name: createWorkflowDto.name,
@@ -33,18 +33,60 @@ export class WorkflowService {
     });
   }
 
-  async findByProject(projectId: string) {
+  async findAll(organizationId: string) {
     return this.prisma.workflow.findMany({
       where: {
-        projectId,
+        project: {
+          organizationId,
+        },
+      },
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        runs: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }
 
-  async findOne(id: string) {
-    const workflow = await this.prisma.workflow.findUnique({
+  async findByProject(
+    projectId: string,
+    organizationId: string,
+  ) {
+    return this.prisma.workflow.findMany({
+      where: {
+        projectId,
+        project: {
+          organizationId,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  async findOne(
+    id: string,
+    organizationId: string,
+  ) {
+    const workflow = await this.prisma.workflow.findFirst({
       where: {
         id,
+        project: {
+          organizationId,
+        },
       },
     });
 

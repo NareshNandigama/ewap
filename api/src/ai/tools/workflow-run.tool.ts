@@ -9,9 +9,9 @@ export class WorkflowRunTool {
     private readonly workflowRunService: WorkflowRunService,
   ) {}
 
-  async getWorkflowRun(runId: string): Promise<ToolResult> {
+  async getWorkflowRun(runId: string, organizationId: string): Promise<ToolResult> {
     try {
-      const workflowRun = await this.workflowRunService.findOne(runId);
+      const workflowRun = await this.workflowRunService.findOne(runId,  organizationId);
 
       return {
         success: true,

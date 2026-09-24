@@ -1,4 +1,10 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+
 import RunDetailsClient from './RunDetailsClient';
+import { apiRequest } from '@/lib/api/client';
 
 type WorkflowExecutionLog = {
   id: string;
@@ -13,39 +19,81 @@ type WorkflowRun = {
   workflowId: string;
   createdAt: string;
   completedAt: string | null;
-  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
+  status:
+    | 'PENDING'
+    | 'RUNNING'
+    | 'SUCCESS'
+    | 'FAILED'
+    | 'CANCELLED';
   logs: WorkflowExecutionLog[];
+  workflow?: {
+    id: string;
+    name: string;
+    project: {
+      id: string;
+      name: string;
+    };
+  };
 };
 
-type RunDetailsPageProps = {
-  params: Promise<{
-    runId: string;
-  }>;
-};
+export default function RunDetailsPage() {
+  const params = useParams<{ runId: string }>();
+  const runId = params.runId;
 
-export default async function RunDetailsPage({
-  params,
-}: RunDetailsPageProps) {
-  const { runId } = await params;
+  const [run, setRun] = useState<WorkflowRun | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const apiUrl = process.env.EWAP_API_URL;
+  useEffect(() => {
+    async function loadRun() {
+      try {
+        setLoading(true);
+        setError(null);
 
-  if (!apiUrl) {
-    throw new Error('EWAP_API_URL is not configured');
+        const data = await apiRequest<WorkflowRun>(
+          `/workflow-runs/${runId}`,
+        );
+
+        setRun(data);
+      } catch (error) {
+        setError(
+          error instanceof Error
+            ? error.message
+            : 'Failed to load workflow run',
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (runId) {
+      loadRun();
+    }
+  }, [runId]);
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
+        Loading workflow run...
+      </div>
+    );
   }
 
-  const response = await fetch(
-    `${apiUrl}/api/v1/workflow-runs/${runId}`,
-    {
-      cache: 'no-store',
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error('Failed to fetch workflow run');
+  if (error) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+        {error}
+      </div>
+    );
   }
 
-  const run: WorkflowRun = await response.json();
+  if (!run) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
+        Workflow run not found.
+      </div>
+    );
+  }
 
   return <RunDetailsClient run={run} />;
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+
 import { API_BASE_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/auth/auth';
 
@@ -33,9 +34,9 @@ export default function AiAssistant({
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] =
     useState(true);
-  const [messages, setMessages] = useState<AiMessage[]>(
-    [],
-  );
+
+  const [messages, setMessages] = useState<AiMessage[]>([]);
+
   const [conversationId, setConversationId] = useState<
     string | null
   >(null);
@@ -69,16 +70,34 @@ export default function AiAssistant({
 
         if (!conversationResponse.ok) {
           throw new Error(
-            'Failed to load AI conversation',
+            `Failed to load AI conversation: ${conversationResponse.status}`,
           );
         }
 
-        const conversation: Conversation | null =
-          await conversationResponse.json();
+        /*
+         * A workflow run may not have an AI conversation yet.
+         *
+         * In that case the backend can return an empty response.
+         * Calling response.json() directly would throw:
+         *
+         * Unexpected end of JSON input
+         */
+        const conversationText =
+          await conversationResponse.text();
 
         if (cancelled) {
           return;
         }
+
+        if (!conversationText.trim()) {
+          setConversationId(null);
+          setMessages([]);
+          return;
+        }
+
+        const conversation = JSON.parse(
+          conversationText,
+        ) as Conversation | null;
 
         if (!conversation) {
           setConversationId(null);
@@ -99,16 +118,25 @@ export default function AiAssistant({
 
         if (!messagesResponse.ok) {
           throw new Error(
-            'Failed to load AI messages',
+            `Failed to load AI messages: ${messagesResponse.status}`,
           );
         }
 
-        const data: ApiAiMessage[] =
-          await messagesResponse.json();
+        const messagesText =
+          await messagesResponse.text();
 
         if (cancelled) {
           return;
         }
+
+        if (!messagesText.trim()) {
+          setMessages([]);
+          return;
+        }
+
+        const data = JSON.parse(
+          messagesText,
+        ) as ApiAiMessage[];
 
         setMessages(
           data.map((message) => ({
@@ -123,9 +151,12 @@ export default function AiAssistant({
       } catch (error) {
         if (!cancelled) {
           console.error(
-            '❌ Failed to load AI conversation:',
+            'Failed to load AI conversation:',
             error,
           );
+
+          setConversationId(null);
+          setMessages([]);
         }
       } finally {
         if (!cancelled) {
@@ -183,23 +214,30 @@ export default function AiAssistant({
         `${API_BASE_URL}/ai/ask/stream`,
         {
           method: 'POST',
+
           headers: {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${accessToken}`,
           },
+
           body: JSON.stringify({
             question,
             workflowRunId: runId,
             ...(conversationId
-              ? { conversationId }
+              ? {
+                  conversationId,
+                }
               : {}),
           }),
+
           signal: controller.signal,
         },
       );
 
       if (!response.ok) {
-        throw new Error('AI request failed');
+        throw new Error(
+          `AI request failed: ${response.status}`,
+        );
       }
 
       const responseConversationId =
@@ -266,14 +304,11 @@ export default function AiAssistant({
         error instanceof DOMException &&
         error.name === 'AbortError'
       ) {
-        console.log('🛑 AI generation stopped');
+        console.log('AI generation stopped');
         return;
       }
 
-      console.error(
-        '❌ AI request failed:',
-        error,
-      );
+      console.error('AI request failed:', error);
 
       setMessages((current) =>
         current.map((message) =>
@@ -313,9 +348,7 @@ export default function AiAssistant({
             <button
               key={question}
               type="button"
-              onClick={() =>
-                setAiQuestion(question)
-              }
+              onClick={() => setAiQuestion(question)}
               disabled={isAiLoading}
               className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-600 transition hover:border-slate-400 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -345,7 +378,7 @@ export default function AiAssistant({
               <div className="mb-2 text-sm font-semibold text-slate-700">
                 {message.role === 'user'
                   ? 'You'
-                  : '🤖 AI Engineering Assistant'}
+                  : 'AI Engineering Assistant'}
               </div>
 
               <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">
@@ -373,7 +406,7 @@ export default function AiAssistant({
           }}
           disabled={isAiLoading}
           placeholder="Why did this workflow fail?"
-          className="flex-1 rounded-lg border border-slate-300 px-4 py-3 text-sm outline-none focus:border-slate-500 disabled:bg-slate-100"
+          className="flex-1 rounded-lg border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-slate-500 disabled:bg-slate-100"
         />
 
         <button
@@ -385,7 +418,7 @@ export default function AiAssistant({
             !isAiLoading &&
             !aiQuestion.trim()
           }
-          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
+          className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isAiLoading ? 'Stop' : 'Send'}
         </button>

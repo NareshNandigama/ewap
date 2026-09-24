@@ -15,13 +15,17 @@ export class AiService {
 
   async ask(
     question: string,
+    workflowRunId: string,
     conversationId?: string,
     userId?: string,
+    organizationId?: string,
   ): Promise<{ answer: string }> {
     const prompt = await this.buildPrompt(
       question,
+      workflowRunId,
       conversationId,
       userId,
+      organizationId,
     );
 
     const answer = await this.llmProvider.generate(prompt);
@@ -33,13 +37,17 @@ export class AiService {
 
   async *askStream(
     question: string,
+    workflowRunId: string,
     conversationId?: string,
     userId?: string,
+    organizationId?: string,
   ): AsyncIterable<string> {
     const prompt = await this.buildPrompt(
       question,
+      workflowRunId,
       conversationId,
       userId,
+      organizationId,
     );
 
     for await (
@@ -51,8 +59,10 @@ export class AiService {
 
   private async buildPrompt(
     question: string,
+    workflowRunId: string,
     conversationId?: string,
     userId?: string,
+    organizationId?: string,
   ): Promise<string> {
     let conversationHistory = '';
 
@@ -71,48 +81,43 @@ export class AiService {
         .join('\n');
     }
 
-    const runIdMatch = question.match(
-      /workflow run ([a-f0-9-]{36})/i,
-    );
-
-    if (runIdMatch) {
-      const toolResult =
-        await this.workflowRunTool.getWorkflowRun(
-          runIdMatch[1],
-        );
-
-      return `
-You are the EWAP Engineering Assistant.
-
-Conversation history:
-${conversationHistory || '(No previous messages)'}
-
-Current user question:
-${question}
-
-Workflow run data:
-${JSON.stringify(toolResult.data, null, 2)}
-
-Answer using the conversation history and workflow run data.
-
-Do not invent information that is not present in the available data.
-If the available data is insufficient, clearly say so.
-`;
+    if (!organizationId) {
+      throw new Error(
+        'Organization context is required to access workflow run data',
+      );
     }
+
+    const toolResult =
+      await this.workflowRunTool.getWorkflowRun(
+        workflowRunId,
+        organizationId,
+      );
 
     return `
 You are the EWAP Engineering Assistant.
 
+Your job is to help engineers understand and diagnose workflow executions.
+
 Conversation history:
 ${conversationHistory || '(No previous messages)'}
 
 Current user question:
 ${question}
 
-Answer the user's question using the conversation history.
+Current workflow run:
+${JSON.stringify(toolResult.data, null, 2)}
 
-Do not invent facts.
-If you don't have enough information, clearly say so.
+Instructions:
+
+- Answer using the workflow run data and conversation history.
+- Pay close attention to the workflow run status.
+- Do not claim that a workflow failed unless the available data shows that it failed.
+- If the workflow is PENDING, explain that it has not started execution yet.
+- If the workflow is RUNNING, explain that execution is still in progress.
+- If the workflow is SUCCESS, do not invent a failure.
+- If the workflow is FAILED, use the available logs and metadata to identify the likely failure and explain it.
+- If logs or other evidence are insufficient to determine a root cause, clearly say so.
+- Do not invent logs, errors, workflow steps, causes, or system behavior that are not present in the available data.
 `;
   }
 }
