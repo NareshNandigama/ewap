@@ -1,54 +1,82 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateProjectDto } from './dto/create-project.dto.js';
 
 @Injectable()
 export class ProjectService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
 
   async create(
-    organizationId: string,
+    requestedOrganizationId: string,
+    authenticatedOrganizationId: string,
     createProjectDto: CreateProjectDto,
   ) {
-    // 1. Make sure the organization exists
-    const organization = await this.prisma.organization.findUnique({
-      where: {
-        id: organizationId,
-      },
-    });
+    this.validateOrganizationAccess(
+      requestedOrganizationId,
+      authenticatedOrganizationId,
+    );
+
+    const organization =
+      await this.prisma.organization.findUnique({
+        where: {
+          id: authenticatedOrganizationId,
+        },
+      });
 
     if (!organization) {
       throw new NotFoundException(
-        `Organization with id ${organizationId} not found`,
+        `Organization with id ${authenticatedOrganizationId} not found`,
       );
     }
 
-    // 2. Create the project under that organization
     return this.prisma.project.create({
       data: {
         name: createProjectDto.name,
         description: createProjectDto.description,
-        organizationId,
+        organizationId:
+          authenticatedOrganizationId,
       },
     });
   }
 
-  async findByOrganization(organizationId: string) {
+  async findByOrganization(
+    requestedOrganizationId: string,
+    authenticatedOrganizationId: string,
+  ) {
+    this.validateOrganizationAccess(
+      requestedOrganizationId,
+      authenticatedOrganizationId,
+    );
+
     return this.prisma.project.findMany({
       where: {
-        organizationId,
+        organizationId:
+          authenticatedOrganizationId,
+      },
+      orderBy: {
+        createdAt: 'desc',
       },
     });
   }
 
-  async findOne(id: string, organizationId: string) {
-    const project = await this.prisma.project.findFirst({
-      where: {
-        id,
-        organizationId,
-      },
-    });
+  async findOne(
+    id: string,
+    organizationId: string,
+  ) {
+    const project =
+      await this.prisma.project.findFirst({
+        where: {
+          id,
+          organizationId,
+        },
+      });
 
     if (!project) {
       throw new NotFoundException(
@@ -57,5 +85,19 @@ export class ProjectService {
     }
 
     return project;
+  }
+
+  private validateOrganizationAccess(
+    requestedOrganizationId: string,
+    authenticatedOrganizationId: string,
+  ) {
+    if (
+      requestedOrganizationId !==
+      authenticatedOrganizationId
+    ) {
+      throw new ForbiddenException(
+        'You do not have access to this organization',
+      );
+    }
   }
 }
