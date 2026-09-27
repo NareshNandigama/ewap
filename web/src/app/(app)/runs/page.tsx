@@ -35,6 +35,7 @@ export default function RunsPage() {
   const [runs, setRuns] = useState<WorkflowRun[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     async function loadRuns() {
@@ -103,6 +104,27 @@ export default function RunsPage() {
     }
   }
 
+  const normalizedSearchQuery =
+    searchQuery.trim().toLowerCase();
+
+  const filteredRuns = runs.filter((run) => {
+    if (!normalizedSearchQuery) {
+      return true;
+    }
+
+    return (
+      run.workflow.name
+        .toLowerCase()
+        .includes(normalizedSearchQuery) ||
+      run.workflow.project.name
+        .toLowerCase()
+        .includes(normalizedSearchQuery) ||
+      run.id
+        .toLowerCase()
+        .includes(normalizedSearchQuery)
+    );
+  });
+
   return (
     <div className="space-y-8">
       <div>
@@ -154,57 +176,92 @@ export default function RunsPage() {
       )}
 
       {!loading && !error && runs.length > 0 && (
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-          <div className="hidden grid-cols-[1fr_1fr_180px_140px] gap-6 border-b border-slate-200 bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
-            <div>Workflow</div>
-            <div>Project</div>
-            <div>Started</div>
-            <div>Status</div>
+        <div className="space-y-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+            <label
+              htmlFor="run-search"
+              className="sr-only"
+            >
+              Search workflow runs
+            </label>
+
+            <input
+              id="run-search"
+              type="search"
+              value={searchQuery}
+              onChange={(event) =>
+                setSearchQuery(event.target.value)
+              }
+              placeholder="Search by workflow, project, or run ID..."
+              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            />
           </div>
 
-          <div className="divide-y divide-slate-200">
-            {runs.map((run) => (
-              <Link
-                key={run.id}
-                href={`/runs/${run.id}`}
-                className="grid gap-4 px-6 py-5 transition hover:bg-slate-50 md:grid-cols-[1fr_1fr_180px_140px] md:items-center md:gap-6"
-              >
-                <div className="min-w-0">
-                  <p className="truncate font-semibold text-slate-950">
-                    {run.workflow.name}
-                  </p>
+          {filteredRuns.length === 0 ? (
+            <div className="rounded-xl border border-dashed border-slate-300 bg-white p-10 text-center shadow-sm">
+              <h2 className="text-base font-semibold text-slate-950">
+                No matching workflow runs
+              </h2>
 
-                  <p className="mt-1 truncate font-mono text-xs text-slate-400">
-                    {run.id}
-                  </p>
-                </div>
+              <p className="mt-2 text-sm text-slate-600">
+                Try searching with a different workflow,
+                project, or run ID.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className="hidden grid-cols-[1fr_1fr_180px_140px] gap-6 border-b border-slate-200 bg-slate-50 px-6 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
+                <div>Workflow</div>
+                <div>Project</div>
+                <div>Started</div>
+                <div>Status</div>
+              </div>
 
-                <div>
-                  <p className="text-sm font-medium text-slate-700">
-                    {run.workflow.project.name}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-sm text-slate-600">
-                    {new Date(
-                      run.createdAt,
-                    ).toLocaleString()}
-                  </p>
-                </div>
-
-                <div>
-                  <span
-                    className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
-                      run.status,
-                    )}`}
+              <div className="divide-y divide-slate-200">
+                {filteredRuns.map((run) => (
+                  <Link
+                    key={run.id}
+                    href={`/runs/${run.id}`}
+                    className="grid gap-4 px-6 py-5 transition hover:bg-slate-50 md:grid-cols-[1fr_1fr_180px_140px] md:items-center md:gap-6"
                   >
-                    {run.status}
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-slate-950">
+                        {run.workflow.name}
+                      </p>
+
+                      <p className="mt-1 truncate font-mono text-xs text-slate-400">
+                        {run.id}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm font-medium text-slate-700">
+                        {run.workflow.project.name}
+                      </p>
+                    </div>
+
+                    <div>
+                      <p className="text-sm text-slate-600">
+                        {new Date(
+                          run.createdAt,
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+
+                    <div>
+                      <span
+                        className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
+                          run.status,
+                        )}`}
+                      >
+                        {run.status}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
