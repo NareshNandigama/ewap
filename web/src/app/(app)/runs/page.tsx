@@ -13,6 +13,8 @@ type WorkflowRunStatus =
   | 'FAILED'
   | 'CANCELLED';
 
+type StatusFilter = WorkflowRunStatus | 'ALL';
+
 type WorkflowRun = {
   id: string;
   workflowId: string;
@@ -36,6 +38,8 @@ export default function RunsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] =
+    useState<StatusFilter>('ALL');
 
   useEffect(() => {
     async function loadRuns() {
@@ -108,11 +112,8 @@ export default function RunsPage() {
     searchQuery.trim().toLowerCase();
 
   const filteredRuns = runs.filter((run) => {
-    if (!normalizedSearchQuery) {
-      return true;
-    }
-
-    return (
+    const matchesSearch =
+      !normalizedSearchQuery ||
       run.workflow.name
         .toLowerCase()
         .includes(normalizedSearchQuery) ||
@@ -121,8 +122,13 @@ export default function RunsPage() {
         .includes(normalizedSearchQuery) ||
       run.id
         .toLowerCase()
-        .includes(normalizedSearchQuery)
-    );
+        .includes(normalizedSearchQuery);
+
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      run.status === statusFilter;
+
+    return matchesSearch && matchesStatus;
   });
 
   return (
@@ -178,23 +184,75 @@ export default function RunsPage() {
       {!loading && !error && runs.length > 0 && (
         <div className="space-y-4">
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-            <label
-              htmlFor="run-search"
-              className="sr-only"
-            >
-              Search workflow runs
-            </label>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex-1">
+                <label
+                  htmlFor="run-search"
+                  className="sr-only"
+                >
+                  Search workflow runs
+                </label>
 
-            <input
-              id="run-search"
-              type="search"
-              value={searchQuery}
-              onChange={(event) =>
-                setSearchQuery(event.target.value)
-              }
-              placeholder="Search by workflow, project, or run ID..."
-              className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            />
+                <input
+                  id="run-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) =>
+                    setSearchQuery(event.target.value)
+                  }
+                  placeholder="Search by workflow, project, or run ID..."
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                />
+              </div>
+
+              <div className="sm:w-48">
+                <label
+                  htmlFor="status-filter"
+                  className="sr-only"
+                >
+                  Filter by status
+                </label>
+
+                <select
+                  id="status-filter"
+                  value={statusFilter}
+                  onChange={(event) =>
+                    setStatusFilter(
+                      event.target.value as StatusFilter,
+                    )
+                  }
+                  className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                >
+                  <option value="ALL">
+                    All statuses
+                  </option>
+
+                  <option value="PENDING">
+                    Pending
+                  </option>
+
+                  <option value="RUNNING">
+                    Running
+                  </option>
+
+                  <option value="SUCCESS">
+                    Success
+                  </option>
+
+                  <option value="FAILED">
+                    Failed
+                  </option>
+
+                  <option value="CANCELLED">
+                    Cancelled
+                  </option>
+                </select>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-500">
+              Showing {filteredRuns.length} of {runs.length} runs
+            </p>
           </div>
 
           {filteredRuns.length === 0 ? (
@@ -204,8 +262,7 @@ export default function RunsPage() {
               </h2>
 
               <p className="mt-2 text-sm text-slate-600">
-                Try searching with a different workflow,
-                project, or run ID.
+                Try changing your search or status filter.
               </p>
             </div>
           ) : (
