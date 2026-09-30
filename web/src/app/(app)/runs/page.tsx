@@ -108,8 +108,17 @@ export default function RunsPage() {
     }
   }
 
+  function clearFilters() {
+    setSearchQuery('');
+    setStatusFilter('ALL');
+  }
+
   const normalizedSearchQuery =
     searchQuery.trim().toLowerCase();
+
+  const hasActiveFilters =
+    normalizedSearchQuery.length > 0 ||
+    statusFilter !== 'ALL';
 
   const filteredRuns = runs.filter((run) => {
     const matchesSearch =
@@ -250,9 +259,21 @@ export default function RunsPage() {
               </div>
             </div>
 
-            <p className="mt-3 text-xs text-slate-500">
-              Showing {filteredRuns.length} of {runs.length} runs
-            </p>
+            <div className="mt-3 flex items-center justify-between gap-4">
+              <p className="text-xs text-slate-500">
+                Showing {filteredRuns.length} of {runs.length} runs
+              </p>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-xs font-semibold text-blue-600 transition hover:text-blue-700"
+                >
+                  Clear filters
+                </button>
+              )}
+            </div>
           </div>
 
           {filteredRuns.length === 0 ? (
@@ -264,6 +285,16 @@ export default function RunsPage() {
               <p className="mt-2 text-sm text-slate-600">
                 Try changing your search or status filter.
               </p>
+
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="mt-4 rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                >
+                  Clear filters
+                </button>
+              )}
             </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
