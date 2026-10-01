@@ -10,14 +10,21 @@ export class PrismaService
   constructor() {
     const isProduction = process.env.NODE_ENV === 'production';
 
-    const adapter = new PrismaPg({
-      connectionString: process.env.DATABASE_URL,
-      ssl: isProduction
-        ? {
+    const adapter = isProduction
+      ? new PrismaPg({
+          host: process.env.DB_HOST,
+          port: Number(process.env.DB_PORT ?? 5432),
+          database: process.env.DB_NAME,
+          user: process.env.DB_USER,
+          password: process.env.DB_PASSWORD,
+          ssl: {
             rejectUnauthorized: false,
-          }
-        : false,
-    });
+          },
+        })
+      : new PrismaPg({
+          connectionString: process.env.DATABASE_URL,
+          ssl: false,
+        });
 
     super({ adapter });
   }
