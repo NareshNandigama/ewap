@@ -2,16 +2,12 @@
 
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
+import StatusBadge, {
+  type WorkflowRunStatus,
+} from '@/components/StatusBadge';
 
 import { useWorkflowUpdates } from '@/hooks/useWorkflowUpdates';
 import { apiRequest } from '@/lib/api/client';
-
-type WorkflowRunStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'SUCCESS'
-  | 'FAILED'
-  | 'CANCELLED';
 
 type StatusFilter = WorkflowRunStatus | 'ALL';
 
@@ -87,26 +83,6 @@ export default function RunsPage() {
   useWorkflowUpdates({
     onStatusChange: handleStatusChange,
   });
-
-  function getStatusClass(status: WorkflowRunStatus) {
-    switch (status) {
-      case 'SUCCESS':
-        return 'bg-green-100 text-green-700';
-
-      case 'RUNNING':
-        return 'bg-blue-100 text-blue-700';
-
-      case 'FAILED':
-        return 'bg-red-100 text-red-700';
-
-      case 'CANCELLED':
-        return 'bg-slate-100 text-slate-600';
-
-      case 'PENDING':
-      default:
-        return 'bg-amber-100 text-amber-700';
-    }
-  }
 
   function clearFilters() {
     setSearchQuery('');
@@ -336,15 +312,9 @@ export default function RunsPage() {
                       </p>
                     </div>
 
-                    <div>
-                      <span
-                        className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClass(
-                          run.status,
-                        )}`}
-                      >
-                        {run.status}
-                      </span>
-                    </div>
+                  <div>
+                    <StatusBadge status={run.status} />
+                  </div>
                   </Link>
                 ))}
               </div>
