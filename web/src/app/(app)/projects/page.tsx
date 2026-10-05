@@ -1,7 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from 'react';
 
 import { apiRequest } from '@/lib/api/client';
 import { getOrganizationId } from '@/lib/auth/auth';
@@ -26,30 +30,39 @@ export default function ProjectsPage() {
 
   const organizationId = getOrganizationId();
 
-  const fetchProjects = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const data = await apiRequest<Project[]>(
-        `/organizations/${organizationId}/projects`,
-      );
-
-      setProjects(data);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to load projects',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [organizationId]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function fetchProjects() {
+      try {
+        const data = await apiRequest<Project[]>(
+          `/organizations/${organizationId}/projects`,
+        );
+
+        if (!cancelled) {
+          setProjects(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load projects',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
     void fetchProjects();
-  }, [fetchProjects]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [organizationId]);
 
   async function handleCreateProject(
     event: FormEvent<HTMLFormElement>,

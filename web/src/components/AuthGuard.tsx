@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  useEffect,
-  useState,
-} from 'react';
-
+import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { getAccessToken } from '@/lib/auth/auth';
@@ -15,29 +11,23 @@ export default function AuthGuard({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-
-  const [isAuthenticated, setIsAuthenticated] =
-    useState<boolean | null>(null);
+  const accessToken = getAccessToken();
 
   useEffect(() => {
-    const token = getAccessToken();
-
-    if (!token) {
-      const returnTo = encodeURIComponent(
-        pathname || '/',
-      );
-
-      window.location.replace(
-        `/login?returnTo=${returnTo}`,
-      );
-
+    if (accessToken) {
       return;
     }
 
-    setIsAuthenticated(true);
-  }, [pathname]);
+    const returnTo = encodeURIComponent(
+      pathname || '/',
+    );
 
-  if (isAuthenticated !== true) {
+    window.location.replace(
+      `/login?returnTo=${returnTo}`,
+    );
+  }, [accessToken, pathname]);
+
+  if (!accessToken) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <p className="text-sm text-slate-500">

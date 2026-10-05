@@ -1,7 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { FormEvent, useCallback, useEffect, useState } from 'react';
+import {
+  FormEvent,
+  useEffect,
+  useState,
+} from 'react';
 import { useParams } from 'next/navigation';
 
 import { apiRequest } from '@/lib/api/client';
@@ -35,34 +39,43 @@ export default function ProjectDetailsPage() {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadProject = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [projectData, workflowData] = await Promise.all([
-        apiRequest<Project>(`/projects/${projectId}`),
-        apiRequest<Workflow[]>(
-          `/projects/${projectId}/workflows`,
-        ),
-      ]);
-
-      setProject(projectData);
-      setWorkflows(workflowData);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to load project',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [projectId]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadProject() {
+      try {
+        const [projectData, workflowData] = await Promise.all([
+          apiRequest<Project>(`/projects/${projectId}`),
+          apiRequest<Workflow[]>(
+            `/projects/${projectId}/workflows`,
+          ),
+        ]);
+
+        if (!cancelled) {
+          setProject(projectData);
+          setWorkflows(workflowData);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load project',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
     void loadProject();
-  }, [loadProject]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId]);
 
   async function handleCreateWorkflow(
     event: FormEvent<HTMLFormElement>,

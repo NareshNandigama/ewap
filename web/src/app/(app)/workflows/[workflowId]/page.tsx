@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { apiRequest } from '@/lib/api/client';
 
@@ -39,34 +39,43 @@ export default function WorkflowDetailsPage() {
   const [creatingRun, setCreatingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadWorkflow = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const [workflowData, runsData] = await Promise.all([
-        apiRequest<Workflow>(`/workflows/${workflowId}`),
-        apiRequest<WorkflowRun[]>(
-          `/workflows/${workflowId}/runs`,
-        ),
-      ]);
-
-      setWorkflow(workflowData);
-      setRuns(runsData);
-    } catch (error) {
-      setError(
-        error instanceof Error
-          ? error.message
-          : 'Unable to load workflow',
-      );
-    } finally {
-      setLoading(false);
-    }
-  }, [workflowId]);
-
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadWorkflow() {
+      try {
+        const [workflowData, runsData] = await Promise.all([
+          apiRequest<Workflow>(`/workflows/${workflowId}`),
+          apiRequest<WorkflowRun[]>(
+            `/workflows/${workflowId}/runs`,
+          ),
+        ]);
+
+        if (!cancelled) {
+          setWorkflow(workflowData);
+          setRuns(runsData);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setError(
+            error instanceof Error
+              ? error.message
+              : 'Unable to load workflow',
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
     void loadWorkflow();
-  }, [loadWorkflow]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [workflowId]);
 
   async function handleRunWorkflow() {
     try {
