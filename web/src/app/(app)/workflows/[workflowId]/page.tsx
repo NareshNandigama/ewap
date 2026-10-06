@@ -4,6 +4,9 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import StatusBadge, {
+  type WorkflowRunStatus,
+} from '@/components/StatusBadge';
 import { apiRequest } from '@/lib/api/client';
 
 type Workflow = {
@@ -13,13 +16,6 @@ type Workflow = {
   createdAt: string;
   updatedAt: string;
 };
-
-type WorkflowRunStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'SUCCESS'
-  | 'FAILED'
-  | 'CANCELLED';
 
 type WorkflowRun = {
   id: string;
@@ -101,26 +97,6 @@ export default function WorkflowDetailsPage() {
       );
     } finally {
       setCreatingRun(false);
-    }
-  }
-
-  function statusClasses(status: WorkflowRunStatus) {
-    switch (status) {
-      case 'SUCCESS':
-        return 'bg-green-100 text-green-700';
-
-      case 'FAILED':
-        return 'bg-red-100 text-red-700';
-
-      case 'RUNNING':
-        return 'bg-blue-100 text-blue-700';
-
-      case 'CANCELLED':
-        return 'bg-slate-100 text-slate-600';
-
-      case 'PENDING':
-      default:
-        return 'bg-amber-100 text-amber-700';
     }
   }
 
@@ -228,13 +204,7 @@ export default function WorkflowDetailsPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
-                  <span
-                    className={`rounded-full px-3 py-1 text-xs font-medium ${statusClasses(
-                      run.status,
-                    )}`}
-                  >
-                    {run.status}
-                  </span>
+                  <StatusBadge status={run.status} />
 
                   <span className="text-sm font-semibold text-slate-700">
                     View run →
