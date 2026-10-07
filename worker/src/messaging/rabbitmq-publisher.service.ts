@@ -1,5 +1,8 @@
-import { Injectable,OnModuleDestroy,
-  OnModuleInit, } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 
 import amqp, { Channel, ChannelModel } from 'amqplib';
 
@@ -9,7 +12,9 @@ import {
 } from './messaging.constants.js';
 
 @Injectable()
-export class RabbitMqPublisherService implements OnModuleInit, OnModuleDestroy {
+export class RabbitMqPublisherService
+  implements OnModuleInit, OnModuleDestroy
+{
   private connection?: ChannelModel;
   private channel?: Channel;
 
@@ -18,7 +23,33 @@ export class RabbitMqPublisherService implements OnModuleInit, OnModuleDestroy {
       process.env.RABBITMQ_URL!,
     );
 
+    this.connection.on('error', (error) => {
+      console.error(
+        '❌ RabbitMQ publisher connection error:',
+        error.message,
+      );
+    });
+
+    this.connection.on('close', () => {
+      console.warn(
+        '⚠️ RabbitMQ publisher connection closed',
+      );
+    });
+
     this.channel = await this.connection.createChannel();
+
+    this.channel.on('error', (error) => {
+      console.error(
+        '❌ RabbitMQ publisher channel error:',
+        error.message,
+      );
+    });
+
+    this.channel.on('close', () => {
+      console.warn(
+        '⚠️ RabbitMQ publisher channel closed',
+      );
+    });
   }
 
   async onModuleDestroy(): Promise<void> {
@@ -33,13 +64,21 @@ export class RabbitMqPublisherService implements OnModuleInit, OnModuleDestroy {
     },
     retryCount: number,
   ): Promise<void> {
-    this.channel?.publish(
+    if (!this.channel) {
+      throw new Error(
+        'RabbitMQ publisher channel is not available',
+      );
+    }
+
+    this.channel.publish(
       WORKFLOW_RETRY_EXCHANGE,
       'workflow.retry',
-      Buffer.from(JSON.stringify({
-            pattern: 'workflow.execute',
-            data,
-        })),
+      Buffer.from(
+        JSON.stringify({
+          pattern: 'workflow.execute',
+          data,
+        }),
+      ),
       {
         persistent: true,
         headers: {
@@ -56,13 +95,21 @@ export class RabbitMqPublisherService implements OnModuleInit, OnModuleDestroy {
     },
     retryCount: number,
   ): Promise<void> {
-    this.channel?.publish(
+    if (!this.channel) {
+      throw new Error(
+        'RabbitMQ publisher channel is not available',
+      );
+    }
+
+    this.channel.publish(
       WORKFLOW_DLQ_EXCHANGE,
       'workflow.dead',
-      Buffer.from(JSON.stringify({
-        pattern: 'workflow.execute',
-        data,
-      })),
+      Buffer.from(
+        JSON.stringify({
+          pattern: 'workflow.execute',
+          data,
+        }),
+      ),
       {
         persistent: true,
         headers: {

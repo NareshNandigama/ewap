@@ -5,14 +5,15 @@ import {
 } from '@nestjs/common';
 
 import amqp, { Channel, ChannelModel } from 'amqplib';
+
 import {
   RETRY_DELAY_MS,
   WORKFLOW_DLQ,
+  WORKFLOW_DLQ_EXCHANGE,
   WORKFLOW_EXCHANGE,
   WORKFLOW_QUEUE,
   WORKFLOW_RETRY_EXCHANGE,
   WORKFLOW_RETRY_QUEUE,
-  WORKFLOW_DLQ_EXCHANGE,
 } from './messaging.constants.js';
 
 @Injectable()
@@ -27,9 +28,34 @@ export class RabbitMqTopologyService
       process.env.RABBITMQ_URL!,
     );
 
+    this.connection.on('error', (error) => {
+      console.error(
+        '❌ RabbitMQ topology connection error:',
+        error.message,
+      );
+    });
+
+    this.connection.on('close', () => {
+      console.warn(
+        '⚠️ RabbitMQ topology connection closed',
+      );
+    });
+
     this.channel = await this.connection.createChannel();
 
-    // Main exchange
+    this.channel.on('error', (error) => {
+      console.error(
+        '❌ RabbitMQ topology channel error:',
+        error.message,
+      );
+    });
+
+    this.channel.on('close', () => {
+      console.warn(
+        '⚠️ RabbitMQ topology channel closed',
+      );
+    });
+
     await this.channel.assertExchange(
       WORKFLOW_EXCHANGE,
       'direct',
@@ -38,7 +64,6 @@ export class RabbitMqTopologyService
       },
     );
 
-    // Retry exchange
     await this.channel.assertExchange(
       WORKFLOW_RETRY_EXCHANGE,
       'direct',
@@ -47,46 +72,33 @@ export class RabbitMqTopologyService
       },
     );
 
-    // DLQ exchange
     await this.channel.assertExchange(
-        WORKFLOW_DLQ_EXCHANGE,
-        'direct',
-        {
-            durable: true,
-        },
+      WORKFLOW_DLQ_EXCHANGE,
+      'direct',
+      {
+        durable: true,
+      },
     );
 
-    // Main workflow queue
     await this.channel.assertQueue(
       WORKFLOW_QUEUE,
       {
         durable: true,
         deadLetterExchange: WORKFLOW_DLQ_EXCHANGE,
-        deadLetterRoutingKey:'workflow.dead',
+        deadLetterRoutingKey: 'workflow.dead',
       },
     );
 
-    // Retry queue
     await this.channel.assertQueue(
-        WORKFLOW_RETRY_QUEUE,
-        {
-            durable: true,
-
-            // Wait 5 seconds before retrying
-            messageTtl: RETRY_DELAY_MS,
-
-            // After TTL, send back to main exchange
-            deadLetterExchange:
-            WORKFLOW_EXCHANGE,
-
-            // IMPORTANT:
-            // Change routing key back to workflow.execute
-            deadLetterRoutingKey:
-            'workflow.execute',
-        },
+      WORKFLOW_RETRY_QUEUE,
+      {
+        durable: true,
+        messageTtl: RETRY_DELAY_MS,
+        deadLetterExchange: WORKFLOW_EXCHANGE,
+        deadLetterRoutingKey: 'workflow.execute',
+      },
     );
 
-    // Dead-letter queue
     await this.channel.assertQueue(
       WORKFLOW_DLQ,
       {
@@ -94,28 +106,24 @@ export class RabbitMqTopologyService
       },
     );
 
-    // Main exchange → main queue
     await this.channel.bindQueue(
       WORKFLOW_QUEUE,
       WORKFLOW_EXCHANGE,
       'workflow.execute',
     );
 
-    // Retry exchange → retry queue
     await this.channel.bindQueue(
       WORKFLOW_RETRY_QUEUE,
       WORKFLOW_RETRY_EXCHANGE,
       'workflow.retry',
     );
 
-    // DLQ exchange → DLQ queue
     await this.channel.bindQueue(
-        WORKFLOW_DLQ,
-        WORKFLOW_DLQ_EXCHANGE,
-        'workflow.dead',
+      WORKFLOW_DLQ,
+      WORKFLOW_DLQ_EXCHANGE,
+      'workflow.dead',
     );
 
-    // Log topology creation
     console.log('🐇 RabbitMQ topology initialized');
   }
 
