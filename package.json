@@ -1,8 +1,0 @@
-{
-  "dependencies": {
-    "@tanstack/react-query": "^5.104.1",
-    "@tanstack/react-table": "8",
-    "react-is": "^19.3.0",
-    "recharts": "^3.10.1"
-  }
-}
