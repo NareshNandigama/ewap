@@ -1,11 +1,12 @@
 'use client';
 
-import Link from 'next/link';
 import {
-  FormEvent,
-  useEffect,
-  useState,
-} from 'react';
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
+import Link from 'next/link';
+import { FormEvent, useState } from 'react';
 
 import { apiRequest } from '@/lib/api/client';
 import { getOrganizationId } from '@/lib/auth/auth';
@@ -19,50 +20,48 @@ type Project = {
   updatedAt: string;
 };
 
-export default function ProjectsPage() {
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [loading, setLoading] = useState(true);
+type CreateProjectInput = {
+  name: string;
+  description?: string;
+};
 
+export default function ProjectsPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const organizationId = getOrganizationId();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    let cancelled = false;
+  const {
+    data: projects = [],
+    isPending,
+    error: projectsError,
+  } = useQuery({
+    queryKey: ['projects', organizationId],
+    queryFn: () =>
+      apiRequest<Project[]>(
+        `/organizations/${organizationId}/projects`,
+      ),
+  });
 
-    async function fetchProjects() {
-      try {
-        const data = await apiRequest<Project[]>(
-          `/organizations/${organizationId}/projects`,
-        );
+  const createProjectMutation = useMutation({
+    mutationFn: (project: CreateProjectInput) =>
+      apiRequest<Project>(
+        `/organizations/${organizationId}/projects`,
+        {
+          method: 'POST',
+          body: JSON.stringify(project),
+        },
+      ),
 
-        if (!cancelled) {
-          setProjects(data);
-        }
-      } catch (error) {
-        if (!cancelled) {
-          setError(
-            error instanceof Error
-              ? error.message
-              : 'Unable to load projects',
-          );
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void fetchProjects();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [organizationId]);
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ['projects', organizationId],
+      });
+    },
+  });
 
   async function handleCreateProject(
     event: FormEvent<HTMLFormElement>,
@@ -78,21 +77,10 @@ export default function ProjectsPage() {
       setCreating(true);
       setError(null);
 
-      const newProject = await apiRequest<Project>(
-        `/organizations/${organizationId}/projects`,
-        {
-          method: 'POST',
-          body: JSON.stringify({
-            name: name.trim(),
-            description: description.trim() || undefined,
-          }),
-        },
-      );
-
-      setProjects((currentProjects) => [
-        newProject,
-        ...currentProjects,
-      ]);
+      await createProjectMutation.mutateAsync({
+        name: name.trim(),
+        description: description.trim() || undefined,
+      });
 
       setName('');
       setDescription('');
@@ -103,7 +91,9 @@ export default function ProjectsPage() {
           : 'Unable to create project';
 
       if (message.includes('401')) {
-        setError('Your session has expired. Please log in again.');
+        setError(
+          'Your session has expired. Please log in again.',
+        );
       } else if (message.includes('403')) {
         setError(
           'You do not have permission to create projects.',
@@ -156,7 +146,9 @@ export default function ProjectsPage() {
             <input
               id="project-name"
               value={name}
-              onChange={(event) => setName(event.target.value)}
+              onChange={(event) =>
+                setName(event.target.value)
+              }
               placeholder="Customer Platform"
               className="w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-slate-500 focus:ring-2 focus:ring-slate-200"
             />
@@ -200,13 +192,24 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {loading && (
+      {projectsError && (
+        <div
+          role="alert"
+          className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700"
+        >
+          {projectsError instanceof Error
+            ? projectsError.message
+            : 'Unable to load projects'}
+        </div>
+      )}
+
+      {isPending && (
         <div className="rounded-xl border border-slate-200 bg-white p-8 text-sm text-slate-600 shadow-sm">
           Loading projects...
         </div>
       )}
 
-      {!loading && projects.length === 0 && (
+      {!isPending && projects.length === 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
           <h2 className="font-semibold text-slate-950">
             No projects yet
@@ -218,7 +221,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {!loading && projects.length > 0 && (
+      {!isPending && projects.length > 0 && (
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {projects.map((project) => (
             <Link

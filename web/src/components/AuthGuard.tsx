@@ -1,9 +1,13 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { usePathname } from 'next/navigation';
 
 import { getAccessToken } from '@/lib/auth/auth';
+
+function subscribe() {
+  return () => {};
+}
 
 export default function AuthGuard({
   children,
@@ -11,10 +15,19 @@ export default function AuthGuard({
   children: React.ReactNode;
 }>) {
   const pathname = usePathname();
-  const accessToken = getAccessToken();
+
+  const isHydrated = useSyncExternalStore(
+    subscribe,
+    () => true,
+    () => false,
+  );
+
+  const accessToken = isHydrated
+    ? getAccessToken()
+    : null;
 
   useEffect(() => {
-    if (accessToken) {
+    if (!isHydrated || accessToken) {
       return;
     }
 
@@ -25,9 +38,9 @@ export default function AuthGuard({
     window.location.replace(
       `/login?returnTo=${returnTo}`,
     );
-  }, [accessToken, pathname]);
+  }, [accessToken, isHydrated, pathname]);
 
-  if (!accessToken) {
+  if (!isHydrated || !accessToken) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-slate-50">
         <p className="text-sm text-slate-500">
