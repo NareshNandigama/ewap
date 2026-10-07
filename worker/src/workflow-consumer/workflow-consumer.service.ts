@@ -86,27 +86,34 @@ constructor(
     return true;
   }
 
-  private async notifyStatus(
-    runId: string,
-    status: string,
-  ): Promise<void> {
-    const apiBaseUrl =
-      this.configService.getOrThrow<string>('NEXT_PUBLIC_API_BASE_URL');
+private async notifyStatus(
+  runId: string,
+  status: string,
+): Promise<void> {
+  const apiBaseUrl =
+    this.configService.getOrThrow<string>(
+      'NEXT_PUBLIC_API_BASE_URL',
+    );
 
-    await fetch(
-      `${apiBaseUrl}/api/v1/workflow-runs/status`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          runId,
-          status,
-        }),
-      },
+  const url = `${apiBaseUrl}/api/v1/workflow-runs/status`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      runId,
+      status,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Workflow status notification failed: ${response.status}`,
     );
   }
+}
 
   private async SimulateFailure(runId: string): Promise<void> {
     console.log(`⚙️ Executing workflow for Run ${runId}...`);

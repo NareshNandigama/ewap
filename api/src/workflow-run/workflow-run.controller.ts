@@ -15,6 +15,7 @@ import { WorkflowGateway } from '../workflow/workflow.gateway.js';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class WorkflowRunController {
@@ -66,6 +67,7 @@ export class WorkflowRunController {
   }
 
   @Post('workflow-runs/status')
+  @Public()
   updateStatus(@Body() dto: WorkflowStatusDto) {
     this.workflowGateway.broadcastWorkflowStatus(
       dto.runId,

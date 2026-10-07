@@ -25,10 +25,7 @@ export function useWorkflowUpdates({
   onStatusChange,
 }: UseWorkflowUpdatesOptions) {
   useEffect(() => {
-    const socket = io(WEBSOCKET_URL, {
-      transports: ['websocket'],
-    });
-
+    const socket = io(WEBSOCKET_URL);
     socket.on('connect', () => {
       console.log(
         'Workflow Updates WebSocket connected:',

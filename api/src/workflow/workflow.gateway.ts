@@ -3,7 +3,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 
 @WebSocketGateway({
   cors: {
@@ -15,7 +15,7 @@ export class WorkflowGateway {
   server: Server;
 
   @SubscribeMessage('message')
-  handleMessage(client: any, payload: any) {
+  handleMessage(client: Socket, payload: unknown) {
     console.log('📨 Received from client:', payload);
   }
 
