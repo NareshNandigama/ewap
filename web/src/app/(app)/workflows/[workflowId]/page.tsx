@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -34,6 +35,17 @@ export default function WorkflowDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [creatingRun, setCreatingRun] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Derived state: execution statistics
+  const totalRuns = runs.length;
+
+  const successfulRuns = runs.filter(
+    (run) => run.status === 'SUCCESS',
+  ).length;
+
+  const failedRuns = runs.filter(
+    (run) => run.status === 'FAILED',
+  ).length;
 
   useEffect(() => {
     let cancelled = false;
@@ -110,6 +122,7 @@ export default function WorkflowDetailsPage() {
 
   return (
     <div className="space-y-8">
+      {/* Workflow Header */}
       <div>
         {workflow && (
           <Link
@@ -147,6 +160,7 @@ export default function WorkflowDetailsPage() {
         </div>
       </div>
 
+      {/* Error Message */}
       {error && (
         <div
           role="alert"
@@ -156,6 +170,50 @@ export default function WorkflowDetailsPage() {
         </div>
       )}
 
+      {/* Execution Summary */}
+      <section>
+        <div className="mb-4">
+          <h2 className="text-lg font-semibold text-slate-950">
+            Execution Summary
+          </h2>
+
+          <p className="mt-1 text-sm text-slate-600">
+            Overview of workflow execution results.
+          </p>
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[
+            {
+              label: 'Total Runs',
+              value: totalRuns,
+            },
+            {
+              label: 'Successful',
+              value: successfulRuns,
+            },
+            {
+              label: 'Failed',
+              value: failedRuns,
+            },
+          ].map((stat) => (
+            <div
+              key={stat.label}
+              className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm"
+            >
+              <p className="text-sm font-medium text-slate-500">
+                {stat.label}
+              </p>
+
+              <p className="mt-3 text-3xl font-bold tracking-tight text-slate-950">
+                {stat.value}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Workflow Runs */}
       <section>
         <div className="mb-4">
           <h2 className="text-lg font-semibold text-slate-950">
