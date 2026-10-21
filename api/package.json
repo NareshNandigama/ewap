@@ -23,6 +23,8 @@
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
+    "@langchain/core": "^1.2.20",
+    "@langchain/langgraph": "^1.5.1",
     "@nestjs/common": "^12.0.1",
     "@nestjs/config": "^12.0.0",
     "@nestjs/core": "^12.0.1",

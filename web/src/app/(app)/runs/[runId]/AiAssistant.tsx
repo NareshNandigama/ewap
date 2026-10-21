@@ -5,6 +5,8 @@ import { useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/auth/auth';
 
+type AiMode = 'standard' | 'agent';
+
 type AiAssistantProps = {
   runId: string;
 };
@@ -31,6 +33,8 @@ export default function AiAssistant({
   runId,
 }: AiAssistantProps) {
   const [aiQuestion, setAiQuestion] = useState('');
+  const [aiMode, setAiMode] = useState<AiMode>('standard');
+  const [agentMessages, setAgentMessages] = useState<AiMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] =
     useState(true);
@@ -172,6 +176,8 @@ export default function AiAssistant({
     };
   }, [runId]);
 
+  const visibleMessages = aiMode === 'agent' ? agentMessages : messages;
+
   const askAi = async () => {
     const question = aiQuestion.trim();
 
@@ -187,7 +193,9 @@ export default function AiAssistant({
     const userMessageId = crypto.randomUUID();
     const assistantMessageId = crypto.randomUUID();
 
-    setMessages((current) => [
+    const updateMessages = aiMode === 'agent' ? setAgentMessages : setMessages;
+
+    updateMessages((current) => [
       ...current,
       {
         id: userMessageId,
@@ -208,6 +216,43 @@ export default function AiAssistant({
 
       if (!accessToken) {
         throw new Error('Authentication required');
+      }
+
+      if (aiMode === 'agent') {
+        const response = await fetch(
+          `${API_BASE_URL}/ai/agent/diagnose`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${accessToken}`,
+            },
+            body: JSON.stringify({
+              question,
+              workflowRunId: runId,
+            }),
+            signal: controller.signal,
+          },
+        );
+
+        if (!response.ok) {
+          throw new Error(`LangGraph request failed: ${response.status}`);
+        }
+
+        const result = (await response.json()) as { answer?: string };
+
+        if (typeof result.answer !== 'string') {
+          throw new Error('Invalid LangGraph response');
+        }
+
+        setAgentMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMessageId
+              ? { ...message, content: result.answer as string }
+              : message,
+          ),
+        );
+        return;
       }
 
       const response = await fetch(
@@ -310,7 +355,7 @@ export default function AiAssistant({
 
       console.error('AI request failed:', error);
 
-      setMessages((current) =>
+      updateMessages((current) =>
         current.map((message) =>
           message.id === assistantMessageId
             ? {
@@ -333,6 +378,35 @@ export default function AiAssistant({
 
   return (
     <div className="mt-6 border-t border-slate-200 pt-6">
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <span className="text-sm font-medium text-slate-700">AI mode</span>
+        <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
+          {([
+            ['standard', 'Standard AI'],
+            ['agent', 'LangGraph Agent'],
+          ] as const).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              onClick={() => setAiMode(mode)}
+              disabled={isAiLoading}
+              aria-pressed={aiMode === mode}
+              className={`rounded-md px-3 py-2 text-sm font-medium transition disabled:opacity-50 ${
+                aiMode === mode
+                  ? 'bg-slate-900 text-white'
+                  : 'text-slate-600 hover:bg-white'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {aiMode === 'agent' && (
+        <p className="mb-5 text-sm text-slate-500">
+          LangGraph test mode: responses are not streamed or saved to conversation history.
+        </p>
+      )}
       <div className="mb-5">
         <p className="mb-3 text-sm font-medium text-slate-700">
           What would you like to investigate?
@@ -358,15 +432,15 @@ export default function AiAssistant({
         </div>
       </div>
 
-      {isHistoryLoading && (
+      {aiMode === 'standard' && isHistoryLoading && (
         <p className="mb-4 text-sm text-slate-500">
           Loading conversation...
         </p>
       )}
 
-      {messages.length > 0 && (
+      {visibleMessages.length > 0 && (
         <div className="mb-5 mt-5 space-y-4">
-          {messages.map((message) => (
+          {visibleMessages.map((message) => (
             <div
               key={message.id}
               className={
@@ -378,7 +452,9 @@ export default function AiAssistant({
               <div className="mb-2 text-sm font-semibold text-slate-700">
                 {message.role === 'user'
                   ? 'You'
-                  : 'AI Engineering Assistant'}
+                  : aiMode === 'agent'
+                    ? 'LangGraph Agent'
+                    : 'AI Engineering Assistant'}
               </div>
 
               <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">

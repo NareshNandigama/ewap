@@ -1,3 +1,4 @@
+
 import {
   Body,
   Controller,
@@ -12,6 +13,7 @@ import type { Response } from 'express';
 
 import { AskAiDto } from './dto/ask-ai.dto.js';
 import { AiService } from './ai.service.js';
+import { AiAgentService } from './ai-agent.service.js';
 import { AiConversationService } from './ai-conversation.service.js';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
@@ -24,6 +26,7 @@ export class AiController {
   constructor(
     private readonly aiService: AiService,
     private readonly aiConversationService: AiConversationService,
+    private readonly aiAgentService: AiAgentService,
   ) {}
 
   @Get('conversations')
@@ -45,6 +48,19 @@ export class AiController {
     return this.aiConversationService.getMessages(
       conversationId,
       user.sub,
+    );
+  }
+
+  // LangGraph-powered workflow diagnostic endpoint
+  @Post('agent/diagnose')
+  async diagnose(
+    @Body() dto: AskAiDto,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.aiAgentService.diagnose(
+      dto.question,
+      dto.workflowRunId,
+      user.organizationId,
     );
   }
 

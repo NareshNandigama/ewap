@@ -9,12 +9,14 @@ import { WorkflowRunModule } from '../workflow-run/workflow-run.module.js';
 import { AiConversationService } from './ai-conversation.service.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { AiAgentService } from './ai-agent.service.js';
 
 @Module({
   imports: [WorkflowRunModule, PrismaModule, AuthModule],
   controllers: [AiController],
   providers: [
     AiService,
+    AiAgentService,
     AiConversationService,
     WorkflowRunTool,
     {
