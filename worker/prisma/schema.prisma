@@ -13,8 +13,9 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users    User[]
-  projects Project[]
+  users             User[]
+  projects          Project[]
+  integrationEvents IntegrationEvent[]
 }
 
 model User {
@@ -55,14 +56,15 @@ model Workflow {
 }
 
 model WorkflowRun {
-  id              String                 @id @default(uuid())
-  workflowId      String
-  createdAt       DateTime               @default(now())
-  completedAt     DateTime?
-  status          WorkflowRunStatus
-  workflow        Workflow               @relation(fields: [workflowId], references: [id])
-  logs            WorkflowExecutionLog[]
-  aiConversations AiConversation[]
+  id                String                 @id @default(uuid())
+  workflowId        String
+  createdAt         DateTime               @default(now())
+  completedAt       DateTime?
+  status            WorkflowRunStatus
+  workflow          Workflow               @relation(fields: [workflowId], references: [id])
+  logs              WorkflowExecutionLog[]
+  aiConversations   AiConversation[]
+  integrationEvents IntegrationEvent[]
 }
 
 model WorkflowExecutionLog {
@@ -103,6 +105,42 @@ model AiMessage {
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, createdAt])
+}
+
+model IntegrationEvent {
+  id             String                 @id @default(uuid())
+  organizationId String
+  workflowRunId  String?
+  externalRunId  String
+  integration    String
+  workflow       String
+  stage          String?
+  status         IntegrationEventStatus
+  errorCode      String?
+  errorMessage   String?
+  retryable      Boolean?
+  correlationId  String?
+  idempotencyKey String
+  occurredAt     DateTime
+  createdAt      DateTime               @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  workflowRun  WorkflowRun? @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, idempotencyKey])
+  @@index([organizationId, occurredAt])
+  @@index([organizationId, externalRunId])
+  @@index([organizationId, correlationId])
+  @@index([workflowRunId])
+}
+
+enum IntegrationEventStatus {
+  STARTED
+  RUNNING
+  SUCCESS
+  FAILED
+  RETRYING
+  CANCELLED
 }
 
 enum AiMessageRole {
