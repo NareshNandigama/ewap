@@ -18,14 +18,25 @@ type UseWorkflowUpdatesOptions = {
 };
 
 const WEBSOCKET_URL =
-  process.env.NEXT_PUBLIC_WEBSOCKET_URL ??
-  'http://localhost:3000';
+  process.env.NEXT_PUBLIC_WEBSOCKET_URL?.trim();
 
 export function useWorkflowUpdates({
   onStatusChange,
 }: UseWorkflowUpdatesOptions) {
   useEffect(() => {
-    const socket = io(WEBSOCKET_URL);
+    // No configured WebSocket endpoint:
+    // do not attempt a connection.
+    if (!WEBSOCKET_URL) {
+      return;
+    }
+
+    const socket = io(WEBSOCKET_URL, {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 10000,
+    });
+
     socket.on('connect', () => {
       console.log(
         'Workflow Updates WebSocket connected:',
