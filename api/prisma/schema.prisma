@@ -13,9 +13,10 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  users             User[]
-  projects          Project[]
-  integrationEvents IntegrationEvent[]
+  users              User[]
+  projects           Project[]
+  integrationEvents  IntegrationEvent[]
+  knowledgeDocuments KnowledgeDocument[]
 }
 
 model User {
@@ -132,6 +133,37 @@ model IntegrationEvent {
   @@index([organizationId, externalRunId])
   @@index([organizationId, correlationId])
   @@index([workflowRunId])
+}
+
+model KnowledgeDocument {
+  id             String   @id @default(uuid())
+  organizationId String
+  title          String
+  source         String?
+  content        String   @db.Text
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  chunks       KnowledgeChunk[]
+
+  @@index([organizationId, createdAt])
+}
+
+model KnowledgeChunk {
+  id             String                      @id @default(uuid())
+  documentId     String
+  chunkIndex     Int
+  content        String                      @db.Text
+  createdAt      DateTime                    @default(now())
+  organizationId String
+  embedding      Unsupported("vector(768)")?
+
+  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, chunkIndex])
+  @@index([documentId])
+  @@index([organizationId])
 }
 
 enum IntegrationEventStatus {
