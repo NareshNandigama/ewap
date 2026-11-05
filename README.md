@@ -24,6 +24,7 @@ analyze execution status and failures.
 - Guest access for the public demo
 - Real-time workflow status architecture using WebSockets
 - RabbitMQ-based asynchronous workflow execution architecture
+- Redis-backed optional cache layer for workflow runs and diagnostic results
 - Streaming AI responses
 - Workflow-run-aware AI diagnostics
 - AI conversation persistence
@@ -215,6 +216,11 @@ and a normal JWT.
 
 
 ## Tech Stack
+
+### Cache
+
+- Redis 7 for optional response caching and short-lived workflow metadata
+- Cache is tenant-scoped and safe to disable without breaking PostgreSQL-backed requests
 
 ### Frontend
 
