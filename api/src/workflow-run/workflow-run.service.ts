@@ -64,6 +64,31 @@ export class WorkflowRunService {
     ]);
   }
 
+  async invalidateRunCaches(runId: string): Promise<void> {
+    const workflowRun = await this.prisma.workflowRun.findUnique({
+      where: { id: runId },
+      select: {
+        workflow: {
+          select: {
+            project: {
+              select: { organizationId: true },
+            },
+          },
+        },
+      },
+    });
+
+    if (!workflowRun?.workflow?.project?.organizationId) {
+      return;
+    }
+
+    const organizationId = workflowRun.workflow.project.organizationId;
+    await Promise.all([
+      this.redisService.del(this.buildRunKey(organizationId, runId)),
+      this.invalidateOrganizationCaches(organizationId),
+    ]);
+  }
+
   async create(
     workflowId: string,
     organizationId: string,
@@ -89,6 +114,8 @@ export class WorkflowRunService {
         status: 'PENDING',
       },
     });
+
+    await this.invalidateOrganizationCaches(organizationId);
 
     await this.messagingService.publishWorkflowRun(
       run.id,

@@ -26,6 +26,7 @@ describe('WorkflowRunService', () => {
       workflowRun: {
         findMany: vi.fn(),
         findFirst: vi.fn(),
+        findUnique: vi.fn(),
       },
     };
 
@@ -33,6 +34,7 @@ describe('WorkflowRunService', () => {
       isAvailable: vi.fn(() => true),
       get: vi.fn(),
       set: vi.fn(),
+      del: vi.fn(),
       flushPattern: vi.fn(),
     };
 
@@ -103,5 +105,26 @@ describe('WorkflowRunService', () => {
     await expect(service.findAll('org-1')).resolves.toEqual(rows);
     expect(redis.get).not.toHaveBeenCalled();
     expect(redis.set).not.toHaveBeenCalled();
+  });
+
+  it('invalidates cached workflow-run data for a run status update', async () => {
+    prisma.workflowRun.findUnique.mockResolvedValue({
+      workflow: {
+        project: {
+          organizationId: 'org-1',
+        },
+      },
+    });
+    redis.del.mockResolvedValue(true);
+    redis.flushPattern.mockResolvedValue(2);
+
+    await service.invalidateRunCaches('run-1');
+
+    expect(redis.del).toHaveBeenCalledWith(
+      'org:org-1:workflow-runs:run:run-1',
+    );
+    expect(redis.flushPattern).toHaveBeenCalledWith(
+      'org:org-1:workflow-runs:*',
+    );
   });
 });
