@@ -2,13 +2,67 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MessagingService } from '../messaging/messaging.service.js';
+import { RedisService } from '../redis/redis.service.js';
+
+const WORKFLOW_RUN_LIST_TTL_SECONDS = 60;
 
 @Injectable()
 export class WorkflowRunService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly messagingService: MessagingService,
+    private readonly redisService: RedisService,
   ) {}
+
+  private buildOrganizationListKey(organizationId: string) {
+    return `org:${organizationId}:workflow-runs:list`;
+  }
+
+  private buildWorkflowListKey(
+    organizationId: string,
+    workflowId: string,
+  ) {
+    return `org:${organizationId}:workflows:${workflowId}:workflow-runs:list`;
+  }
+
+  private buildRunKey(organizationId: string, runId: string) {
+    return `org:${organizationId}:workflow-runs:run:${runId}`;
+  }
+
+  private async getCached<T>(key: string): Promise<T | null> {
+    if (!this.redisService.isAvailable()) {
+      return null;
+    }
+
+    return this.redisService.get<T>(key);
+  }
+
+  private async setCached<T>(
+    key: string,
+    value: T,
+    ttlSeconds = WORKFLOW_RUN_LIST_TTL_SECONDS,
+  ): Promise<void> {
+    if (!this.redisService.isAvailable()) {
+      return;
+    }
+
+    await this.redisService.set(key, value, ttlSeconds);
+  }
+
+  async invalidateOrganizationCaches(organizationId: string): Promise<void> {
+    if (!this.redisService.isAvailable()) {
+      return;
+    }
+
+    await Promise.all([
+      this.redisService.flushPattern(
+        `org:${organizationId}:workflow-runs:*`,
+      ),
+      this.redisService.flushPattern(
+        `org:${organizationId}:workflows:*:workflow-runs:*`,
+      ),
+    ]);
+  }
 
   async create(
     workflowId: string,
@@ -45,7 +99,14 @@ export class WorkflowRunService {
   }
 
   async findAll(organizationId: string) {
-    return this.prisma.workflowRun.findMany({
+    const cacheKey = this.buildOrganizationListKey(organizationId);
+    const cached = await this.getCached(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.prisma.workflowRun.findMany({
       where: {
         workflow: {
           project: {
@@ -71,13 +132,26 @@ export class WorkflowRunService {
         createdAt: 'desc',
       },
     });
+
+    await this.setCached(cacheKey, result);
+    return result;
   }
 
   async findByWorkflow(
     workflowId: string,
     organizationId: string,
   ) {
-    return this.prisma.workflowRun.findMany({
+    const cacheKey = this.buildWorkflowListKey(
+      organizationId,
+      workflowId,
+    );
+    const cached = await this.getCached(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.prisma.workflowRun.findMany({
       where: {
         workflowId,
         workflow: {
@@ -90,12 +164,22 @@ export class WorkflowRunService {
         createdAt: 'desc',
       },
     });
+
+    await this.setCached(cacheKey, result);
+    return result;
   }
 
   async findOne(
     id: string,
     organizationId: string,
   ) {
+    const cacheKey = this.buildRunKey(organizationId, id);
+    const cached = await this.getCached(cacheKey);
+
+    if (cached) {
+      return cached;
+    }
+
     const workflowRun =
       await this.prisma.workflowRun.findFirst({
         where: {
@@ -133,6 +217,7 @@ export class WorkflowRunService {
       );
     }
 
+    await this.setCached(cacheKey, workflowRun);
     return workflowRun;
   }
 }

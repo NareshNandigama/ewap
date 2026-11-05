@@ -7,6 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { MessagingModule } from '../messaging/messaging.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { RedisModule } from '../redis/redis.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { AuthModule } from '../auth/auth.module.js';
     MessagingModule,
     WorkflowModule,
     AuthModule,
+    RedisModule,
   ],
 
   controllers: [
