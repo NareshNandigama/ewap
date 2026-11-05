@@ -1,7 +1,12 @@
+import { createHash } from 'node:crypto';
+
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import type { LlmProvider } from '../ai/providers/llm-provider.js';
+import { RedisService } from '../redis/redis.service.js';
 import { IntegrationEventsService } from './integration-events.service.js';
+
+const DIAGNOSTIC_CACHE_TTL_SECONDS = 300;
 
 const DiagnosticState = Annotation.Root({
   organizationId: Annotation<string>(),
@@ -19,6 +24,7 @@ export class IntegrationDiagnosticAgentService {
   constructor(
     private readonly events: IntegrationEventsService,
     @Inject('LLM_PROVIDER') private readonly llm: LlmProvider,
+    private readonly redis: RedisService,
   ) {
     this.graph = new StateGraph(DiagnosticState)
       .addNode('fetchEvidence', async (state) => {
@@ -56,6 +62,31 @@ Events (latest first): ${state.evidence}
       .compile();
   }
 
+  private buildCacheKey(organizationId: string, externalRunId: string, question: string): string {
+    const hash = createHash('sha256')
+      .update(question.trim().toLowerCase())
+      .digest('hex')
+      .slice(0, 16);
+
+    return `org:${organizationId}:integration-diagnostics:${externalRunId}:${hash}`;
+  }
+
+  private async readCachedAnswer(cacheKey: string) {
+    if (!this.redis.isAvailable()) {
+      return null;
+    }
+
+    return this.redis.get<{ answer: string }>(cacheKey);
+  }
+
+  private async writeCachedAnswer(cacheKey: string, answer: string): Promise<void> {
+    if (!this.redis.isAvailable()) {
+      return;
+    }
+
+    await this.redis.set(cacheKey, { answer }, DIAGNOSTIC_CACHE_TTL_SECONDS);
+  }
+
   async diagnose(organizationId: string, externalRunId: string, question: string) {
     if (!organizationId) throw new BadRequestException('Organization context required');
     if (typeof externalRunId !== 'string' || !externalRunId.trim() || externalRunId.length > 200) {
@@ -64,14 +95,26 @@ Events (latest first): ${state.evidence}
     if (typeof question !== 'string' || !question.trim() || question.length > 2000) {
       throw new BadRequestException('Valid question required (max 2000 characters)');
     }
+
+    const normalizedExternalRunId = externalRunId.trim();
+    const normalizedQuestion = question.trim();
+    const cacheKey = this.buildCacheKey(organizationId, normalizedExternalRunId, normalizedQuestion);
+    const cached = await this.readCachedAnswer(cacheKey);
+
+    if (cached?.answer) {
+      return { answer: cached.answer };
+    }
+
     const result = await this.graph.invoke({
       organizationId,
-      externalRunId: externalRunId.trim(),
-      question: question.trim(),
+      externalRunId: normalizedExternalRunId,
+      question: normalizedQuestion,
       evidence: '',
       hasEvents: false,
       answer: '',
     });
+
+    await this.writeCachedAnswer(cacheKey, result.answer);
     return { answer: result.answer };
   }
 }
