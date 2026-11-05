@@ -24,6 +24,7 @@ services:
       NODE_ENV: production
 
       RABBITMQ_URL: amqp://ewap:ewap_dev_password@rabbitmq:5672
+      REDIS_URL: redis://redis:6379
       RABBITMQ_QUEUE: ewap-workflows
       RABBITMQ_RETRY_QUEUE: ewap-workflows-retry
       RABBITMQ_DLQ: ewap-workflows-dlq

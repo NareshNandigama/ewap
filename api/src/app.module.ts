@@ -13,6 +13,7 @@ import { MessagingModule } from './messaging/messaging.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { IntegrationEventsModule } from './integration-events/integration-events.module.js';
+import { RedisModule } from './redis/redis.module.js';
 import Joi from 'joi';
 
 @Module({
@@ -25,6 +26,7 @@ import Joi from 'joi';
         APP_NAME: Joi.string().default('EWAP API'),
         APP_VERSION: Joi.string().default('1.0.0'),
         DATABASE_URL: Joi.string().required(),
+        REDIS_URL: Joi.string().optional(),
         RABBITMQ_URL: Joi.string().optional(),
         GEMINI_API_KEY: Joi.string().required(),
         FRONTEND_URL: Joi.string().optional(),
@@ -39,9 +41,10 @@ import Joi from 'joi';
     WorkflowModule,
     WorkflowRunModule,
     MessagingModule,
+    RedisModule,
     AiModule,
     AuthModule,
-    IntegrationEventsModule
+    IntegrationEventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
