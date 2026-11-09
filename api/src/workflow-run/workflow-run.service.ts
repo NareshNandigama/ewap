@@ -127,7 +127,7 @@ export class WorkflowRunService {
 
   async findAll(organizationId: string) {
     const cacheKey = this.buildOrganizationListKey(organizationId);
-    const cached = await this.getCached(cacheKey);
+    const cached = await this.getCached<typeof result>(cacheKey);
 
     if (cached) {
       return cached;
@@ -172,7 +172,7 @@ export class WorkflowRunService {
       organizationId,
       workflowId,
     );
-    const cached = await this.getCached(cacheKey);
+    const cached = await this.getCached<typeof result>(cacheKey);
 
     if (cached) {
       return cached;
@@ -201,7 +201,7 @@ export class WorkflowRunService {
     organizationId: string,
   ) {
     const cacheKey = this.buildRunKey(organizationId, id);
-    const cached = await this.getCached(cacheKey);
+    const cached = await this.getCached<NonNullable<typeof workflowRun>>(cacheKey);
 
     if (cached) {
       return cached;

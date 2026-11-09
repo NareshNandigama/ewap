@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Redis as RedisClient } from 'ioredis';
 
@@ -14,7 +19,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   onModuleInit(): void {
     if (!this.redisUrl || !this.redisUrl.trim()) {
-      this.logger.debug('REDIS_URL is not configured; Redis caching is disabled.');
+      this.logger.debug(
+        'REDIS_URL is not configured; Redis caching is disabled.',
+      );
       return;
     }
 
@@ -28,6 +35,14 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
       this.client.on('error', () => {
         // Redis is optional for the API. Keep this quiet unless we explicitly need it.
+      });
+
+      // Start connecting without delaying API startup. Cache callers only use
+      // Redis once it is ready; ioredis handles reconnecting after failures.
+      void this.client.connect().catch((error: unknown) => {
+        this.logger.debug(
+          `Redis connection failed: ${this.formatError(error)}`,
+        );
       });
     } catch (error) {
       this.client = undefined;
