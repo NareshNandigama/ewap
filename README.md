@@ -294,10 +294,16 @@ RDS.
 ewap/
 ├── api/        # NestJS backend
 ├── web/        # Next.js frontend
+├── ai-service/ # Python FastAPI diagnostics (standalone foundation)
 └── README.md
 
 
 ## Running Locally
+
+The Python diagnostics foundation has independent setup and test instructions
+in [ai-service/README.md](ai-service/README.md). It currently provides rule-based
+reports without LLM calls or a NestJS connection. Implementation status and the
+next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 
 ### Prerequisites
 
