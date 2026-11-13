@@ -1,27 +1,30 @@
-import { Controller, Get, Post, Body, Param, ParseUUIDPipe } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { OrganizationService } from './organization.service.js';
-import { CreateOrganizationDto } from './dto/create-organization.dto.js';
-import { NotFoundException } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
+import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
+import type { JwtPayload } from '../auth/types/jwt-payload.js';
 
 @Controller('organizations')
+@UseGuards(JwtAuthGuard)
 export class OrganizationController {
-    constructor(private readonly organizationService: OrganizationService) {}
-    @Get()
-    findAll() {
-        return this.organizationService.findAll();
-    }
+  constructor(private readonly organizationService: OrganizationService) {}
 
-    @Get(':id')
-    async findOne(@Param('id', new ParseUUIDPipe()) id: string) {
-        const organization = await this.organizationService.findOne(id);
-        if (!organization) {
-            throw new NotFoundException(`Organization with ID ${id} not found`);
-        }
-        return organization
-    }
+  @Get()
+  findAll(@CurrentUser() user: JwtPayload) {
+    return this.organizationService.findAll(user.organizationId);
+  }
 
-    @Post()
-    create(@Body() createOrganizationDto: CreateOrganizationDto) {
-        return this.organizationService.create(createOrganizationDto);
-    }
+  @Get(':id')
+  findOne(
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @CurrentUser() user: JwtPayload,
+  ) {
+    return this.organizationService.findOne(id, user.organizationId);
+  }
 }

@@ -29,13 +29,17 @@ const args =
         'node_modules/vitest/vitest.mjs',
         'run',
         '--config',
-        'vitest.config.analytics.ts',
-        command === 'test'
-          ? 'test/analytics.database.ts'
-          : 'test/analytics.explain.ts',
+        command === 'membership'
+          ? 'vitest.config.membership.ts'
+          : 'vitest.config.analytics.ts',
+        command === 'membership'
+          ? 'test/membership.database.ts'
+          : command === 'test'
+            ? 'test/analytics.database.ts'
+            : 'test/analytics.explain.ts',
       ];
-if (!['migrate', 'test', 'explain'].includes(command))
-  throw new Error('Expected migrate, test, or explain');
+if (!['migrate', 'test', 'explain', 'membership'].includes(command))
+  throw new Error('Expected migrate, test, explain, or membership');
 const result = spawnSync(process.execPath, args, {
   cwd: apiRoot,
   stdio: 'inherit',

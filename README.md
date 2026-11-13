@@ -211,6 +211,12 @@ Two roles are currently supported:
 
 Authorization is enforced by the backend.
 
+New organizations and their first administrator are created atomically through
+`POST /auth/register`. Adding users to an existing organization requires its
+administrator; organization and user reads are authenticated and scoped.
+See [membership authorization](docs/membership-authorization.md) for the API
+contract and the replacement for the previous public bootstrap flow.
+
 The public demo also provides Guest access using a dedicated MEMBER account
 and a normal JWT.
 
