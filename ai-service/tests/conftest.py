@@ -5,8 +5,10 @@ from ewap_ai.main import create_app
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    monkeypatch.setenv("AI_SERVICE_API_KEY", "test-service-key-" + "a" * 32)
     with TestClient(create_app()) as test_client:
+        test_client.headers["X-EWAP-Service-Key"] = "test-service-key-" + "a" * 32
         yield test_client
 
 

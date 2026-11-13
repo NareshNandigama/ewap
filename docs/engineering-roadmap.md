@@ -11,15 +11,15 @@ it after each phase; do not infer completion from a feature name alone.
 - Redis foundation: startup connection and typed workflow-run cache reads exist
   in commit `7edd291b`. Unit/build verification is recorded below; this does not
   establish live production Redis availability or cache correctness under every race.
-- Existing TypeScript diagnostics remain operational in source; Python does not
-  replace their routes or own their database.
+- Existing TypeScript diagnostics remain available as fallback; the agent
+  diagnostic route supports opt-in Python analysis without changing database ownership.
 
 ## Execution order
 
 | Task | Status | Scope / completion evidence |
 | --- | --- | --- |
 | 1.1 FastAPI foundation | Complete | Independent `ai-service/`, health, validated evidence contract, deterministic rules; 34 Python tests and package build pass |
-| 1.2 Secure NestJS integration | Pending | Service authentication, authorized evidence mapping, timeout, fallback, integration tests |
+| 1.2 Secure NestJS integration | Complete | Service authentication, authorized evidence mapping, deadline, validation, TypeScript fallback; 45 Python and 60 targeted API tests pass |
 | 1.3 Docker and local verification | Pending | AI image and local API-to-Python flow |
 | 2 Advanced PostgreSQL | Pending | Tenant analytics, CTEs, joins, windows, indexes, EXPLAIN ANALYZE, tests |
 | 3 Redis rate limiting | Pending | Login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
@@ -69,14 +69,49 @@ Files added: package configuration, source contracts/rules/routes/app factory,
 HTTP tests, local ignore rules, distribution manifest, service README, and this
 roadmap. Root README links to the service. No existing application logic changed.
 
-Boundary trade-off: a stateless evidence snapshot preserves NestJS database and
-authorization ownership; it requires an explicit mapping contract and later
-network-failure handling. No public service authentication or raw-body size cap
-exists yet. Keep the foundation on localhost.
+At the end of Phase 1, a stateless evidence snapshot preserved NestJS database
+ownership, but service authentication and raw-body limits were still pending.
+Phase 2 adds these controls. Keep local development on loopback.
 
-Next: Task 1, Phase 2 — authenticated NestJS-to-Python integration, timeouts,
-fallback, tenant-scoped evidence mapping, and integration tests. No other task
-has been started. No commit, push, deployment, or paid infrastructure action was taken.
+## Phase 2 verification
+
+Verified November 13, 2026. The implementation adds a fail-closed Python service-key check and
+1 MiB raw-body limit. NestJS's existing JWT-protected agent endpoint first loads
+tenant-scoped evidence, projects a bounded snapshot, then optionally calls Python
+with a deadline and strict response checks. The existing TypeScript graph is the
+fallback; it may call the configured LLM and incur existing provider costs.
+
+The Python deadline does not bound the subsequent fallback provider request.
+Shared-key authentication trusts NestJS for tenant authorization. No retries,
+Docker changes, cloud deployment, or paid resources are part of this phase.
+Metrics dashboards, distributed tracing, user-disconnect cancellation, key
+rotation automation, and rate limiting remain later work. Generating an outgoing
+request ID and logging a sanitized fallback reason do not complete observability.
+
+Files changed:
+
+- Python `security.py`, `body_limit.py`, app wiring, environment example, and
+  security tests; existing endpoint tests now supply a test service credential.
+- NestJS `PythonDiagnosticsClient`, `WorkflowDiagnosticsService`, controller/module
+  wiring, configuration validation, and client/orchestration/controller tests.
+- Root/service READMEs and this roadmap document the opt-in setup and limits.
+
+Validation:
+
+- Python `.venv/bin/python -m pytest`: 45 passed (existing Starlette test-client
+  deprecation warning remains).
+- API targeted Vitest run: 60 passed across 6 files. Covers authenticated-tenant
+  forwarding, real tenant-scoped service lookup, response validation, deadline
+  including body reads, HTTP/network failure, and the real TypeScript graph with
+  a mocked model provider. HTTP transport to Python is mocked in these API tests.
+- API `yarn lint`: passed; `yarn build` under Node 24.20.0: passed.
+- Python `.venv/bin/python -m build`: source distribution and wheel passed.
+- Full API suite was not rerun; unrelated legacy scaffold failures recorded in
+  Phase 1 are not claimed resolved. The modified AI controller scaffold now passes.
+- Live cross-process/Docker integration verification remains Phase 3. Tests made
+  no real model calls and did not modify database data or provision cloud resources.
+
+Next: Task 1, Phase 3 — Docker image and live local API-to-Python verification.
 
 ## Working rules
 

@@ -1,12 +1,18 @@
-from fastapi import FastAPI, Request
+import os
+
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from .routes import diagnostics, health
+from .body_limit import DiagnosticBodyLimit
+from .security import service_auth
 
 
 def create_app() -> FastAPI:
     app = FastAPI(title="EWAP AI Diagnostics", version="0.1.0")
+    authenticate = service_auth(os.environ.get("AI_SERVICE_API_KEY"))
+    app.add_middleware(DiagnosticBodyLimit)
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(_request: Request, exc: RequestValidationError) -> JSONResponse:
@@ -19,7 +25,7 @@ def create_app() -> FastAPI:
         })
 
     app.include_router(health.router)
-    app.include_router(diagnostics.router)
+    app.include_router(diagnostics.router, dependencies=[Depends(authenticate)])
     return app
 
 

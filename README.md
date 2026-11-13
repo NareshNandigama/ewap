@@ -300,9 +300,10 @@ ewap/
 
 ## Running Locally
 
-The Python diagnostics foundation has independent setup and test instructions
-in [ai-service/README.md](ai-service/README.md). It currently provides rule-based
-reports without LLM calls or a NestJS connection. Implementation status and the
+The Python diagnostics service has independent setup and test instructions
+in [ai-service/README.md](ai-service/README.md). It provides rule-based reports
+with optional authenticated NestJS integration and TypeScript fallback. Python
+does not call an LLM yet. Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 
 ### Prerequisites
