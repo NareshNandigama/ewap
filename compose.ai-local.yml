@@ -1,0 +1,22 @@
+# Phase 3 only: containerized Python; NestJS runs on the host.
+# Full database/worker/frontend composition belongs to roadmap Task 5.
+name: ewap-ai-local
+services:
+  ai-service:
+    build:
+      context: ./ai-service
+      target: runtime
+    environment:
+      AI_SERVICE_API_KEY: ${AI_SERVICE_API_KEY:?Set AI_SERVICE_API_KEY using an ignored environment file}
+    ports:
+      - "127.0.0.1:${EWAP_AI_PORT:-18001}:8001"
+    init: true
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 256m
+    pids_limit: 100

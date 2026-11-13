@@ -20,7 +20,7 @@ it after each phase; do not infer completion from a feature name alone.
 | --- | --- | --- |
 | 1.1 FastAPI foundation | Complete | Independent `ai-service/`, health, validated evidence contract, deterministic rules; 34 Python tests and package build pass |
 | 1.2 Secure NestJS integration | Complete | Service authentication, authorized evidence mapping, deadline, validation, TypeScript fallback; 45 Python and 60 targeted API tests pass |
-| 1.3 Docker and local verification | Pending | AI image and local API-to-Python flow |
+| 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Pending | Tenant analytics, CTEs, joins, windows, indexes, EXPLAIN ANALYZE, tests |
 | 3 Redis rate limiting | Pending | Login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
 | 4 Python LangGraph / LLM diagnostics | Pending | Actual model calls, grounded structured findings, retries, timeout/cancellation, evaluation fixtures |
@@ -111,7 +111,49 @@ Validation:
 - Live cross-process/Docker integration verification remains Phase 3. Tests made
   no real model calls and did not modify database data or provision cloud resources.
 
-Next: Task 1, Phase 3 — Docker image and live local API-to-Python verification.
+Phase 2 next step was Task 1, Phase 3; its verified results follow.
+
+## Phase 3 verification
+
+Verified November 13, 2026. New files: Python Dockerfile, Docker ignore rules, runtime dependency
+pins, `compose.ai-local.yml`, and a dedicated API live test/config/script entry.
+Service instructions document setup, scope, security limits, and cleanup.
+
+The Compose project is intentionally AI-only with NestJS running on the host.
+Its port is bound to loopback; the image is non-root and Compose applies a
+read-only filesystem, temporary `/tmp`, capability restrictions, and resource
+limits. Runtime secrets are excluded from the image build context.
+
+Live verification uses actual NestJS/Python HTTP with fixture database reads and
+a stubbed model. It does not claim real PostgreSQL coverage, actual LLM analysis,
+full-stack Docker deployment, or production readiness. Task 5 owns the complete
+Compose/Azure stack. No production database or cloud infrastructure is involved.
+
+Validation results:
+
+- `docker compose --env-file ai-service/.env.local -f compose.ai-local.yml up
+  --build --wait`: image built and container became healthy.
+- Runtime check: Python 3.12.16 and UID 10001; `pip check` found no broken dependencies.
+- Container inspection: read-only root filesystem, 256 MiB memory limit, published
+  only on `127.0.0.1:18001`.
+- Dedicated `test:ai:live` config under Node 24.20.0: 5 passed, with actual Python
+  container HTTP and an ephemeral JWT-protected NestJS HTTP server. Verified
+  success, invalid JWT, tenant denial, missing/wrong service keys, and real
+  TypeScript graph fallback using a stubbed model.
+- Existing targeted API tests: 60 passed across 6 files; lint and Node 24 build passed.
+- Host Python unit/HTTP tests: 45 passed on Python 3.14.7. The existing Starlette
+  test-client deprecation warning remains. Python 3.12 was exercised through the
+  live container checks; the full Python unit suite was not run in that image.
+- Full API suite was not rerun; unrelated legacy scaffold failures remain outside
+  this phase. These results do not claim all repository tests are green.
+- Verification container/network stopped using Compose `down` without volume
+  deletion. The locally generated credential remains in ignored `.env.local`,
+  outside Git and the Docker build context. Docker Desktop was started locally;
+  the built image/cache remains available for reuse.
+
+Task 1 is complete for the scoped deterministic service. Real Python LLM analysis
+is Task 4, and cloud deployment remains Task 5. Next in execution order: Task 2,
+Advanced PostgreSQL analytics. No commit or push was made during this phase.
 
 ## Working rules
 

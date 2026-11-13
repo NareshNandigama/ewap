@@ -294,7 +294,7 @@ RDS.
 ewap/
 ├── api/        # NestJS backend
 ├── web/        # Next.js frontend
-├── ai-service/ # Python FastAPI diagnostics (standalone foundation)
+├── ai-service/ # Independent Python FastAPI diagnostics service
 └── README.md
 
 
@@ -305,6 +305,8 @@ in [ai-service/README.md](ai-service/README.md). It provides rule-based reports
 with optional authenticated NestJS integration and TypeScript fallback. Python
 does not call an LLM yet. Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
+An isolated Python Docker setup and live NestJS-to-Python verification command
+are documented in the service README; the full-stack Compose work is a later task.
 
 ### Prerequisites
 
