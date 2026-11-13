@@ -14,6 +14,7 @@ import { AiModule } from './ai/ai.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { IntegrationEventsModule } from './integration-events/integration-events.module.js';
 import { RedisModule } from './redis/redis.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
 import Joi from 'joi';
 
 @Module({
@@ -37,6 +38,7 @@ import Joi from 'joi';
       }),
     }),
     HealthModule,
+    AnalyticsModule,
     ProjectModule,
     PrismaModule,
     OrganizationModule,

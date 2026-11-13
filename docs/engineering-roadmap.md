@@ -21,7 +21,7 @@ it after each phase; do not infer completion from a feature name alone.
 | 1.1 FastAPI foundation | Complete | Independent `ai-service/`, health, validated evidence contract, deterministic rules; 34 Python tests and package build pass |
 | 1.2 Secure NestJS integration | Complete | Service authentication, authorized evidence mapping, deadline, validation, TypeScript fallback; 45 Python and 60 targeted API tests pass |
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
-| 2 Advanced PostgreSQL | Pending | Tenant analytics, CTEs, joins, windows, indexes, EXPLAIN ANALYZE, tests |
+| 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Pending | Login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
 | 4 Python LangGraph / LLM diagnostics | Pending | Actual model calls, grounded structured findings, retries, timeout/cancellation, evaluation fixtures |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
@@ -154,6 +154,53 @@ Validation results:
 Task 1 is complete for the scoped deterministic service. Real Python LLM analysis
 is Task 4, and cloud deployment remains Task 5. Next in execution order: Task 2,
 Advanced PostgreSQL analytics. No commit or push was made during this phase.
+
+## Task 2 verification
+
+Verified November 13, 2026. Added a NestJS Analytics module and four read-only
+endpoints for top failing workflows, workflow outcome rates, latest windowed
+runs, and integration error frequency. All SQL is parameterized and scoped to
+the JWT organization. Validated UTC windows are half-open, at most 366 days, and
+response lists are limited to 200 rows. Rates exclude active/cancelled runs from
+the SUCCESS + FAILED denominator and are null when no such outcomes exist.
+
+The queries use CTEs, joins, lateral aggregates, ROW_NUMBER, filtered aggregates,
+and numeric rounding. An additive migration adds tenant/project lookup indexes
+and `(workflowId, createdAt DESC, id DESC)` on WorkflowRun. Historical migrations
+are unchanged. The existing IntegrationEvent indexes are reused.
+
+Files changed include `api/src/analytics/`, schema/new migration, AppModule,
+unit/safety/PostgreSQL HTTP tests, guarded local runner/config/package commands,
+isolated PostgreSQL Compose, [analytics documentation](analytics.md), root README,
+and [the EXPLAIN measurement artifact](analytics-explain-results.json).
+
+Validation:
+
+- 15 real PostgreSQL/NestJS HTTP tests passed on PostgreSQL 16.16. They verify
+  rate denominators, zero-run/null results, inclusive/exclusive boundaries,
+  deterministic latest-run ties, failed-event grouping, safe tenant parameters,
+  cross-tenant isolation, JWT rejection, query validation, and result limits.
+- EXPLAIN comparison passed using 100,000 newly seeded runs and 100,000 newly
+  seeded events per run. The recorded database contains 200,030 runs and 200,026
+  events after two benchmark iterations and fixture tests; no data was removed.
+- Final workflow-query medians changed from 36.5–39.8 ms without the new indexes
+  to 1.0–1.2 ms with them. The existing event index already served the error query;
+  no improvement is claimed there. Cached selective-tenant fixture results are
+  not production performance guarantees.
+- Targeted unit/regression and database-safety tests: 81 passed across 8 files.
+- Prisma schema validation, API lint, and Node 24 build passed.
+- All 14 migrations were applied only to the fresh isolated `ewap_analytics_test`
+  database. Production/application migrations were not run. The runner rejects
+  non-loopback hosts, other database/user names, and connection-option overrides.
+- Baseline comparison temporarily removes only the three new indexes inside a
+  deliberately rolled-back test transaction, then measures them restored. No
+  tables/rows are reset, truncated, or deleted. Named-volume fixture data remains.
+- Full API suite was not rerun; legacy scaffold failures remain outside this task.
+
+The isolated database container/network is stopped after verification with its
+named volume preserved. No cloud deployment or paid infrastructure was created.
+This task intentionally leaves the frontend unchanged. Next: Task 3, Redis-backed
+login/AI rate limiting, tenant-aware quotas, 429/Retry-After, and failure/concurrency tests.
 
 ## Working rules
 

@@ -20,7 +20,10 @@
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
     "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
-    "test:ai:live": "vitest run --config ./vitest.config.ai-live.ts"
+    "test:ai:live": "vitest run --config ./vitest.config.ai-live.ts",
+    "analytics:migrate:local": "node scripts/analytics-local.mjs migrate",
+    "test:analytics:db": "node scripts/analytics-local.mjs test",
+    "analytics:explain": "node scripts/analytics-local.mjs explain"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

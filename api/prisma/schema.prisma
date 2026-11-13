@@ -43,6 +43,8 @@ model Project {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   workflows    Workflow[]
+
+  @@index([organizationId, id])
 }
 
 model Workflow {
@@ -54,6 +56,8 @@ model Workflow {
 
   project Project       @relation(fields: [projectId], references: [id])
   runs    WorkflowRun[]
+
+  @@index([projectId, id])
 }
 
 model WorkflowRun {
@@ -66,6 +70,8 @@ model WorkflowRun {
   logs              WorkflowExecutionLog[]
   aiConversations   AiConversation[]
   integrationEvents IntegrationEvent[]
+
+  @@index([workflowId, createdAt(sort: Desc), id(sort: Desc)])
 }
 
 model WorkflowExecutionLog {
