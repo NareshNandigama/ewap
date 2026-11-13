@@ -5,13 +5,16 @@ import { PrismaModule } from '../prisma/prisma.module.js';
 import { RabbitMqTopologyService } from '../messaging/rabbitmq-topology.service.js';
 import { RabbitMqPublisherService } from '../messaging/rabbitmq-publisher.service.js';
 import { ConfigModule } from '@nestjs/config';
+import { WorkerStatusClient } from './worker-status.client.js';
 
 @Module({
-  imports: [PrismaModule,ConfigModule],
+  imports: [PrismaModule, ConfigModule],
   controllers: [WorkflowConsumerController],
-  providers: [WorkflowConsumerService, 
+  providers: [
+    WorkflowConsumerService,
+    WorkerStatusClient,
     RabbitMqTopologyService,
-  RabbitMqPublisherService,
-]
+    RabbitMqPublisherService,
+  ],
 })
 export class WorkflowConsumerModule {}

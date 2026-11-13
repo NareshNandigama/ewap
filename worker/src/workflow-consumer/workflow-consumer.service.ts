@@ -2,35 +2,35 @@ import 'dotenv/config';
 import { Injectable } from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
-import { ConfigService } from '@nestjs/config';
+import { WorkerStatusClient } from './worker-status.client.js';
 
 @Injectable()
 export class WorkflowConsumerService {
-constructor(
-  private readonly prisma: PrismaService,
-  private readonly configService: ConfigService,
-) {}
-  async executeWorkflow(runId: string,  retryCount: number): Promise<boolean> {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly statusClient: WorkerStatusClient,
+  ) {}
+  async executeWorkflow(runId: string, retryCount: number): Promise<boolean> {
     // Step 1: Mark the workflow run as RUNNING
     const result = await this.prisma.workflowRun.updateMany({
-    where: {
+      where: {
         id: runId,
         status: retryCount === 0 ? 'PENDING' : 'FAILED', // Only allow transition to RUNNING if the current status is PENDING or FAILED
-        },
-        data: {
-            status: 'RUNNING',
-        },
+      },
+      data: {
+        status: 'RUNNING',
+      },
     });
     if (result.count === 0) {
-        console.log(
+      console.log(
         `⏭️ WorkflowRun ${runId} is already being processed or completed. Skipping.`,
-        );
+      );
 
-        return false;
+      return false;
     }
 
     console.log(`🚀 WorkflowRun ${runId} is now RUNNING`);
-    
+
     await this.prisma.workflowExecutionLog.create({
       data: {
         workflowRunId: runId,
@@ -86,34 +86,9 @@ constructor(
     return true;
   }
 
-private async notifyStatus(
-  runId: string,
-  status: string,
-): Promise<void> {
-  const apiBaseUrl =
-    this.configService.getOrThrow<string>(
-      'NEXT_PUBLIC_API_BASE_URL',
-    );
-
-  const url = `${apiBaseUrl}/api/v1/workflow-runs/status`;
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      runId,
-      status,
-    }),
-  });
-
-  if (!response.ok) {
-    throw new Error(
-      `Workflow status notification failed: ${response.status}`,
-    );
+  private async notifyStatus(runId: string, status: string): Promise<void> {
+    await this.statusClient.notify(runId, status);
   }
-}
 
   private async SimulateFailure(runId: string): Promise<void> {
     console.log(`⚙️ Executing workflow for Run ${runId}...`);
@@ -143,5 +118,5 @@ private async notifyStatus(
     });
 
     throw new Error('Customer API returned HTTP 500');
-  }   
+  }
 }

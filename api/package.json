@@ -24,6 +24,7 @@
     "analytics:migrate:local": "node scripts/analytics-local.mjs migrate",
     "test:analytics:db": "node scripts/analytics-local.mjs test",
     "test:membership:db": "node scripts/analytics-local.mjs membership",
+    "test:workflow-status:db": "node scripts/analytics-local.mjs status",
     "analytics:explain": "node scripts/analytics-local.mjs explain"
   },
   "dependencies": {

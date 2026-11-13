@@ -1,5 +1,4 @@
 import {
-  Body,
   Controller,
   Get,
   Param,
@@ -9,26 +8,18 @@ import {
 } from '@nestjs/common';
 
 import { WorkflowRunService } from './workflow-run.service.js';
-import { WorkflowStatusDto } from './dto/workflow-status.dto.js';
-import { WorkflowGateway } from '../workflow/workflow.gateway.js';
 
 import { JwtAuthGuard } from '../auth/guards/jwt-auth/jwt-auth.guard.js';
 import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
-import { Public } from '../auth/decorators/public.decorator.js';
 @Controller()
 @UseGuards(JwtAuthGuard)
 export class WorkflowRunController {
-  constructor(
-    private readonly workflowRunService: WorkflowRunService,
-    private readonly workflowGateway: WorkflowGateway,
-  ) {}
+  constructor(private readonly workflowRunService: WorkflowRunService) {}
 
   @Get('workflow-runs')
   findAll(@CurrentUser() user: JwtPayload) {
-    return this.workflowRunService.findAll(
-      user.organizationId,
-    );
+    return this.workflowRunService.findAll(user.organizationId);
   }
 
   @Post('workflows/:workflowId/runs')
@@ -37,10 +28,7 @@ export class WorkflowRunController {
     workflowId: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.workflowRunService.create(
-      workflowId,
-      user.organizationId,
-    );
+    return this.workflowRunService.create(workflowId, user.organizationId);
   }
 
   @Get('workflows/:workflowId/runs')
@@ -60,24 +48,6 @@ export class WorkflowRunController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @CurrentUser() user: JwtPayload,
   ) {
-    return this.workflowRunService.findOne(
-      id,
-      user.organizationId,
-    );
-  }
-
-  @Post('workflow-runs/status')
-  @Public()
-  async updateStatus(@Body() dto: WorkflowStatusDto) {
-    this.workflowGateway.broadcastWorkflowStatus(
-      dto.runId,
-      dto.status,
-    );
-
-    await this.workflowRunService.invalidateRunCaches(dto.runId);
-
-    return {
-      success: true,
-    };
+    return this.workflowRunService.findOne(id, user.organizationId);
   }
 }

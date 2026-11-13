@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { io } from 'socket.io-client';
+import { getAccessToken } from '../lib/auth/auth';
 
 type WorkflowStatus =
   | 'PENDING'
@@ -26,11 +27,13 @@ export function useWorkflowUpdates({
   useEffect(() => {
     // No configured WebSocket endpoint:
     // do not attempt a connection.
-    if (!WEBSOCKET_URL) {
+    if (!WEBSOCKET_URL || !getAccessToken()) {
       return;
     }
 
     const socket = io(WEBSOCKET_URL, {
+      // Read again on reconnect; never put credentials or tenant IDs in the URL.
+      auth: (callback) => callback({ token: getAccessToken() }),
       reconnection: true,
       reconnectionAttempts: 5,
       reconnectionDelay: 1000,

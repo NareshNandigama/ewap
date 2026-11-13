@@ -30,6 +30,7 @@ import Joi from 'joi';
         REDIS_URL: Joi.string().optional(),
         AI_DIAGNOSTICS_URL: Joi.string().uri({ scheme: ['http', 'https'] }).optional(),
         AI_SERVICE_API_KEY: Joi.string().pattern(/^[\x21-\x7e]{32,512}$/).optional(),
+        WORKER_STATUS_API_KEY: Joi.string().pattern(/^[\x21-\x7e]{32,512}$/).optional(),
         AI_DIAGNOSTICS_TIMEOUT_MS: Joi.number().integer().min(100).max(30000).default(3000),
         RABBITMQ_URL: Joi.string().optional(),
         GEMINI_API_KEY: Joi.string().required(),

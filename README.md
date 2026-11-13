@@ -23,6 +23,7 @@ analyze execution status and failures.
 - Role-based authorization with ADMIN and MEMBER roles
 - Guest access for the public demo
 - Real-time workflow status architecture using WebSockets
+- Authenticated worker status callbacks and tenant-scoped WebSocket subscriptions
 - RabbitMQ-based asynchronous workflow execution architecture
 - Redis-backed optional cache layer for workflow runs and diagnostic results
 - Streaming AI responses
@@ -155,6 +156,9 @@ Frontend receives status update
 The public production demo currently runs with messaging disabled, so newly
 created workflow runs are persisted as PENDING rather than dispatched to a
 background worker.
+
+Worker callback credentials, socket authentication, configuration, and current
+delivery limits are documented in [workflow status security](docs/workflow-status-security.md).
 
 
 ## AI Assistant

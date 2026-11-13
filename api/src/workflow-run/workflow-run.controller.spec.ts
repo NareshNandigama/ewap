@@ -1,18 +1,26 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, it, expect, vi } from 'vitest';
 import { WorkflowRunController } from './workflow-run.controller.js';
-
 describe('WorkflowRunController', () => {
-  let controller: WorkflowRunController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [WorkflowRunController],
-    }).compile();
-
-    controller = module.get<WorkflowRunController>(WorkflowRunController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('preserves JWT organization scope for normal run operations', async () => {
+    const runs = {
+      findAll: vi.fn(),
+      create: vi.fn(),
+      findByWorkflow: vi.fn(),
+      findOne: vi.fn(),
+    };
+    const controller = new WorkflowRunController(runs as never);
+    const user = {
+      sub: 'user',
+      organizationId: 'org-a',
+      role: 'MEMBER',
+      email: 'test@example.invalid',
+    };
+    await controller.findAll(user);
+    await controller.create('workflow', user);
+    await controller.findByWorkflow('workflow', user);
+    await controller.findOne('run', user);
+    expect(runs.findAll).toHaveBeenCalledWith('org-a');
+    expect(runs.create).toHaveBeenCalledWith('workflow', 'org-a');
+    expect(runs.findOne).toHaveBeenCalledWith('run', 'org-a');
   });
 });

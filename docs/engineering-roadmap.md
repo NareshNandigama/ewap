@@ -22,14 +22,14 @@ feature task, following the approved review. Work remains one item at a time.
 | Priority | Item | Status |
 | --- | --- | --- |
 | P0 / H1 | Atomic organization/owner registration; protect tenant membership and user/organization reads | Complete locally; verified, not deployed |
-| P1 / H2 | Authenticate worker status ingress and isolate WebSocket events by tenant | Pending |
+| P1 / H2 | Authenticate worker status ingress and isolate WebSocket events by tenant | Complete locally; verified, not deployed |
 | P1 / H3 | Fix environment-only API container startup and configuration validation | Pending |
 | P1 / H4 | Atomic run dispatch/outbox, recoverable execution claims, independent status-event delivery | Pending |
 | P1 / H5 | Confirm retry/DLQ publication before ACK; reconnect and apply backpressure | Pending |
 | P2 / H6 | Bind chat conversations and writes to the authorized user/tenant/run | Pending |
 | P2 / H7 | Model streaming terminal states, propagate cancellation, and bound provider work | Pending |
 | P2 / H8 | Improve cache invalidation and diagnostic evidence/version freshness | Pending |
-| P2 / H9 | Consolidate schema ownership, validate database TLS, and define readiness checks | Pending |
+| P2 / H9 | Consolidate schema ownership, validate database TLS, readiness, and cross-replica socket fan-out | Pending |
 
 After P0/P1 access and execution fixes, resume Task 3 rate limiting alongside
 the remaining P2 work according to product impact. Task IDs 1–8 below retain
@@ -42,7 +42,7 @@ their original meaning; completed feature work is not being relabeled.
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Pending | Registration/login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
-| 4 Python LangGraph / LLM diagnostics | Pending | Actual model calls, grounded structured findings, retries, timeout/cancellation, evaluation fixtures |
+| 4 Python LangGraph / LLM diagnostics and RAG | Pending | Actual model calls, grounded structured findings, tenant-scoped runbook retrieval, evaluation and operational controls |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
@@ -50,6 +50,27 @@ their original meaning; completed feature work is not being relabeled.
 
 Existing SQL indexes, Docker files, or TypeScript LangGraph do not imply that
 the corresponding expanded roadmap task is complete.
+
+### Task 4 implementation phases (all pending)
+
+1. Actual Python model calls and LangGraph diagnostic orchestration with Pydantic
+   structured findings, timeouts, bounded retries, and cancellation.
+2. RAG ingestion: tenant-owned runbooks, source/version/access metadata, content
+   hashes, chunking, replacement/deletion, and retry-safe indexing.
+3. Authorized retrieval using PostgreSQL/pgvector as the initial store. Compare
+   keyword, vector, and hybrid candidates against labeled cases; add reranking
+   only if measured results justify its latency and complexity.
+4. Combine retrieved runbook passages with authorized live workflow evidence;
+   validate citation membership and claim support, preserve source versions, and
+   return insufficient evidence when the cause is not established.
+5. Development/held-out evaluations for retrieval and grounded answers, including
+   tenant isolation, injection, missing/conflicting sources, latency, and cost.
+
+Existing knowledge/vector schema fields are groundwork, not a verified RAG
+pipeline. The deterministic Python service remains operational while these phases
+are introduced. NestJS retains authorized database access; Python receives scoped
+run/retrieval evidence through explicit API/tool contracts. No new database, MCP,
+or multi-agent requirement is implied.
 
 ## Cross-cutting work planned
 
@@ -256,6 +277,50 @@ preserved. Email invitations, verification, session revocation, and
 password-reset flows remain separate work. Public registration rate protection
 joins the planned Task 3 scope. Next implementation item: H2, authenticated worker
 status callbacks and tenant-scoped WebSocket delivery.
+
+## H2 workflow status boundary verification
+
+Implemented November 13, 2026. Worker notifications require a separate server key;
+the callback derives tenant and status from PostgreSQL, invalidates exact cache
+keys before emitting, and rechecks persisted state. Socket.IO validates JWT and
+current membership, assigns the tenant room server-side, and disconnects expired
+sessions. The frontend supplies fresh access credentials on connection/reconnect.
+
+The worker validates callback configuration at startup and uses an authenticated,
+bounded, no-redirect HTTP client. Callback delivery failure no longer overwrites a
+successful execution or throws into initial RUNNING notification handling. This
+addresses the notification-error coupling observed in H4, but durable delivery,
+outbox, leases/attempt recovery, and broker confirms remain pending H4/H5 work.
+
+Changed files: API worker guard/status controller/service/module and gateway,
+worker status client/execution wiring, frontend update hook, unit/live tests,
+guarded test command/config, and [status protocol documentation](workflow-status-security.md).
+RAG is now an explicit set of pending Task 4 phases; no RAG implementation was
+started in this hardening item.
+
+Validation:
+
+- 126 targeted API unit/regression tests passed across 19 files, plus the existing
+  4 integration-diagnostics tests (130 tests across 20 files in total).
+- 18 targeted worker tests passed, including callback timeout/error handling and
+  preserving SUCCESS when notification delivery fails.
+- 12 live PostgreSQL/HTTP/Socket.IO tests passed: credentials, current membership,
+  token expiry, tenant isolation, room spoofing, stale states, input validation,
+  and cache-invalidation failure. Redis operations were stubbed; sockets and
+  database lookups were real. No RabbitMQ execution or LLM calls were made.
+- API and worker Node 24 builds passed. API/worker lint passed; worker lint retains
+  two pre-existing unused-variable warnings in unrelated files. Frontend hook lint passed.
+- Frontend production build and TypeScript checks passed using `yarn build --webpack`.
+  Default Turbopack build failed on a local compiler subprocess port restriction,
+  including a retry with sandbox escalation. No compiler/config change was made.
+- Full API/worker suites and global frontend lint were not rerun; unrelated legacy
+  scaffold failures are not claimed resolved. No schema or migration changed.
+
+The isolated test database contains only additional synthetic fixtures. Its
+container/network is stopped afterward without deleting the named volume. No
+application database, production deployment, or paid infrastructure was modified.
+Single-process socket delivery and cache fill/recovery races remain documented
+limits. Next priority: H3, environment-only API startup/configuration validation.
 
 ## Engineering acceptance criteria
 

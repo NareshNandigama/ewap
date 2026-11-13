@@ -8,9 +8,14 @@ import { MessagingModule } from '../messaging/messaging.module.js';
 import { WorkflowModule } from '../workflow/workflow.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { RedisModule } from '../redis/redis.module.js';
+import { ConfigModule } from '@nestjs/config';
+import { WorkflowStatusController } from './workflow-status.controller.js';
+import { WorkflowStatusService } from './workflow-status.service.js';
+import { WorkerStatusGuard } from './worker-status.guard.js';
 
 @Module({
   imports: [
+    ConfigModule,
     PrismaModule,
     MessagingModule,
     WorkflowModule,
@@ -18,16 +23,10 @@ import { RedisModule } from '../redis/redis.module.js';
     RedisModule,
   ],
 
-  controllers: [
-    WorkflowRunController,
-  ],
+  controllers: [WorkflowRunController, WorkflowStatusController],
 
-  providers: [
-    WorkflowRunService,
-  ],
+  providers: [WorkflowRunService, WorkflowStatusService, WorkerStatusGuard],
 
-  exports: [
-    WorkflowRunService,
-  ],
+  exports: [WorkflowRunService],
 })
 export class WorkflowRunModule {}

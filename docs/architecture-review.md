@@ -6,10 +6,11 @@ configuration. Findings describe reachable application code; network restriction
 outside the repository may affect external exposure. No production services or
 databases were accessed. The existing uncommitted roadmap edits were preserved.
 
-Remediation update: H1 membership/registration hardening has been implemented and
-verified locally after this review; it has not been deployed. See
-[membership authorization](membership-authorization.md). The original findings
-below document the reviewed baseline; H2–H9 remain pending in the roadmap queue.
+Remediation update: H1 membership and H2 status-channel hardening have been
+implemented and verified locally after this review; neither has been deployed.
+See [membership authorization](membership-authorization.md) and
+[workflow status security](workflow-status-security.md). Original findings below
+document the reviewed baseline; H3–H9 remain pending in the roadmap queue.
 
 ## Current service boundaries
 
@@ -61,7 +62,7 @@ Verification to add: anonymous membership creation fails; another tenant's admin
 cannot add/read users; valid invitations work once; concurrent bootstrap creates
 exactly the intended administrator membership.
 
-### P1 — Worker status ingress and WebSocket egress lack trust boundaries
+### P1 / H2 addressed locally — Worker status ingress and WebSocket egress lacked trust boundaries
 
 [`workflow-runs/status`](../api/src/workflow-run/workflow-run.controller.ts#L69)
 is explicitly public and broadcasts the submitted state before invalidating
@@ -83,6 +84,12 @@ events rejected or reconciled against database state; tenant B receives no tenan
 A event; cache reads after a notification reflect the current persisted state.
 
 ### P1 — Notification failures corrupt execution state or strand runs
+
+Partial remediation during H2: the authenticated worker notification client now
+reports delivery failure without throwing into execution state handling. The
+SUCCESS-overwrite/initial-notification exception paths described below are
+addressed by that change. Claim/log-write crash recovery, durable delivery, and
+attempt identity remain open H4 items. The following describes the baseline.
 
 [`executeWorkflow`](../worker/src/workflow-consumer/workflow-consumer.service.ts#L15)
 claims RUNNING before log creation and the initial notification, both outside the
@@ -229,4 +236,5 @@ should not automatically become the failure policy for the upcoming rate limiter
 
 The initial review changed no application code and attempted no exploit against
 a running deployment. The subsequent approved hardening queue now governs work;
-H1 remediation is tracked separately above. No other findings are claimed fixed.
+H1/H2 remediation and partial H4 notification decoupling are tracked above. The
+remaining findings are not claimed fixed.
