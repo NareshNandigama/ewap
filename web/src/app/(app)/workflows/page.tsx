@@ -7,11 +7,7 @@ import { useWorkflowUpdates } from '@/hooks/useWorkflowUpdates';
 import { apiRequest } from '@/lib/api/client';
 
 type WorkflowRunStatus =
-  | 'PENDING'
-  | 'RUNNING'
-  | 'SUCCESS'
-  | 'FAILED'
-  | 'CANCELLED';
+  'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 
 type WorkflowRun = {
   id: string;
@@ -40,8 +36,7 @@ export default function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [runningWorkflow, setRunningWorkflow] =
-    useState<string | null>(null);
+  const [runningWorkflow, setRunningWorkflow] = useState<string | null>(null);
 
   const [error, setError] = useState<string | null>(null);
 
@@ -51,15 +46,12 @@ export default function WorkflowsPage() {
         setLoading(true);
         setError(null);
 
-        const data =
-          await apiRequest<Workflow[]>('/workflows');
+        const data = await apiRequest<Workflow[]>('/workflows');
 
         setWorkflows(data);
       } catch (error) {
         setError(
-          error instanceof Error
-            ? error.message
-            : 'Failed to load workflows',
+          error instanceof Error ? error.message : 'Failed to load workflows',
         );
       } finally {
         setLoading(false);
@@ -70,10 +62,7 @@ export default function WorkflowsPage() {
   }, []);
 
   const handleStatusChange = useCallback(
-    (data: {
-      runId: string;
-      status: WorkflowRunStatus;
-    }) => {
+    (data: { runId: string; status: WorkflowRunStatus }) => {
       setWorkflows((current) =>
         current.map((workflow) => {
           const latestRun = workflow.runs[0];
@@ -106,8 +95,17 @@ export default function WorkflowsPage() {
     [],
   );
 
+  const handleResync = useCallback(() => {
+    void apiRequest<Workflow[]>('/workflows')
+      .then(setWorkflows)
+      .catch(() => {
+        setError('Unable to refresh workflow state');
+      });
+  }, []);
+
   useWorkflowUpdates({
     onStatusChange: handleStatusChange,
+    onResync: handleResync,
   });
 
   async function runWorkflow(workflowId: string) {
@@ -134,9 +132,7 @@ export default function WorkflowsPage() {
       );
     } catch (error) {
       setError(
-        error instanceof Error
-          ? error.message
-          : 'Failed to start workflow',
+        error instanceof Error ? error.message : 'Failed to start workflow',
       );
 
       setRunningWorkflow(null);
@@ -175,8 +171,7 @@ export default function WorkflowsPage() {
         </h1>
 
         <p className="mt-2 text-sm text-slate-600">
-          View and execute engineering workflows across your
-          projects.
+          View and execute engineering workflows across your projects.
         </p>
       </div>
 
@@ -194,13 +189,10 @@ export default function WorkflowsPage() {
 
       {!loading && workflows.length === 0 && (
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-          <h2 className="font-semibold text-slate-950">
-            No workflows yet
-          </h2>
+          <h2 className="font-semibold text-slate-950">No workflows yet</h2>
 
           <p className="mt-2 text-sm text-slate-600">
-            Open a project to create your first engineering
-            workflow.
+            Open a project to create your first engineering workflow.
           </p>
 
           <Link
@@ -217,8 +209,7 @@ export default function WorkflowsPage() {
           {workflows.map((workflow) => {
             const latestRun = workflow.runs[0];
 
-            const isRunning =
-              runningWorkflow === workflow.id;
+            const isRunning = runningWorkflow === workflow.id;
 
             return (
               <div
@@ -262,9 +253,7 @@ export default function WorkflowsPage() {
                         href={`/runs/${latestRun.id}`}
                         className="inline-block font-medium text-slate-700 transition hover:text-slate-950"
                       >
-                        {new Date(
-                          latestRun.createdAt,
-                        ).toLocaleString()}
+                        {new Date(latestRun.createdAt).toLocaleString()}
                       </Link>
                     </div>
                   ) : (
@@ -284,15 +273,11 @@ export default function WorkflowsPage() {
 
                   <button
                     type="button"
-                    onClick={() =>
-                      runWorkflow(workflow.id)
-                    }
+                    onClick={() => runWorkflow(workflow.id)}
                     disabled={isRunning}
                     className="flex-1 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isRunning
-                      ? 'Starting...'
-                      : 'Run workflow'}
+                    {isRunning ? 'Starting...' : 'Run workflow'}
                   </button>
                 </div>
               </div>

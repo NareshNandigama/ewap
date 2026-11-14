@@ -4,12 +4,12 @@ import { IntegrationDiagnosticAgentService } from './integration-diagnostic-agen
 
 describe('IntegrationDiagnosticAgentService', () => {
   const createService = (redisOverrides: Record<string, unknown> = {}) => {
-    const events = { list: vi.fn() };
+    const events = { list: vi.fn().mockResolvedValue([]) };
     const llm = { generate: vi.fn() };
     const redis = {
       isAvailable: vi.fn(() => true),
       get: vi.fn(),
-      set: vi.fn(),
+      set: vi.fn().mockResolvedValue(true),
       ...redisOverrides,
     };
     const service = new IntegrationDiagnosticAgentService(
@@ -51,7 +51,9 @@ describe('IntegrationDiagnosticAgentService', () => {
   });
 
   it('falls back to the LLM graph when Redis is unavailable', async () => {
-    const { service, redis } = createService({ isAvailable: vi.fn(() => false) });
+    const { service, redis } = createService({
+      isAvailable: vi.fn(() => false),
+    });
     (service as any).graph.invoke.mockResolvedValue({ answer: 'llm answer' });
 
     await expect(
@@ -75,5 +77,34 @@ describe('IntegrationDiagnosticAgentService', () => {
     expect(new Set(keys).size).toBe(2);
     expect(keys[0]).toContain('org:org-1:integration-diagnostics:run-123:');
     expect(keys[1]).toContain('org:org-2:integration-diagnostics:run-123:');
+  });
+});
+
+describe('evidence-version cache keys', () => {
+  it('separates changed evidence and exact-case questions without reusing a stale fill', async () => {
+    const events = {
+      list: vi.fn().mockResolvedValue([{ id: 'event-a', status: 'RUNNING' }]),
+    };
+    const redis = {
+      isAvailable: () => true,
+      get: vi.fn().mockResolvedValue(null),
+      set: vi.fn().mockResolvedValue(true),
+    };
+    const service = new IntegrationDiagnosticAgentService(
+      events as never,
+      {} as never,
+      redis as never,
+    );
+    (service as any).graph = {
+      invoke: vi.fn().mockResolvedValue({ answer: 'answer' }),
+    };
+    await service.diagnose('org', 'run', 'Explain ABC');
+    events.list.mockResolvedValue([{ id: 'event-b', status: 'FAILED' }]);
+    await service.diagnose('org', 'run', 'Explain ABC');
+    await service.diagnose('org', 'run', 'Explain abc');
+    expect(new Set(redis.get.mock.calls.map(([key]) => key)).size).toBe(3);
+    expect((service as any).graph.invoke.mock.calls[1][0].evidence).toContain(
+      'FAILED',
+    );
   });
 });

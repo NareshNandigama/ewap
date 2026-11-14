@@ -29,20 +29,28 @@ const args =
         'node_modules/vitest/vitest.mjs',
         'run',
         '--config',
-        command === 'status'
-          ? 'vitest.config.workflow-status.ts'
-          : command === 'membership'
-            ? 'vitest.config.membership.ts'
-            : 'vitest.config.analytics.ts',
-        command === 'status'
-          ? 'test/workflow-status.database.ts'
-          : command === 'membership'
-            ? 'test/membership.database.ts'
-            : command === 'test'
-              ? 'test/analytics.database.ts'
-              : 'test/analytics.explain.ts',
+        command === 'hardening'
+          ? 'vitest.config.hardening.ts'
+          : command === 'status'
+            ? 'vitest.config.workflow-status.ts'
+            : command === 'membership'
+              ? 'vitest.config.membership.ts'
+              : 'vitest.config.analytics.ts',
+        command === 'hardening'
+          ? 'test/hardening.database.ts'
+          : command === 'status'
+            ? 'test/workflow-status.database.ts'
+            : command === 'membership'
+              ? 'test/membership.database.ts'
+              : command === 'test'
+                ? 'test/analytics.database.ts'
+                : 'test/analytics.explain.ts',
       ];
-if (!['migrate', 'test', 'explain', 'membership', 'status'].includes(command))
+if (
+  !['migrate', 'test', 'explain', 'membership', 'status', 'hardening'].includes(
+    command,
+  )
+)
   throw new Error('Expected migrate, test, explain, membership, or status');
 const result = spawnSync(process.execPath, args, {
   cwd: apiRoot,

@@ -1,18 +1,12 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { ProjectsService } from './project.service.js';
-
-describe('ProjectsService', () => {
-  let service: ProjectsService;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      providers: [ProjectsService],
-    }).compile();
-
-    service = module.get<ProjectsService>(ProjectsService);
-  });
-
-  it('should be defined', () => {
-    expect(service).toBeDefined();
+import { describe, expect, it, vi } from 'vitest';
+import { ProjectService } from './project.service.js';
+describe('ProjectService', () => {
+  it('rejects another organization before database access', async () => {
+    const findMany = vi.fn();
+    const service = new ProjectService({ project: { findMany } } as never);
+    await expect(
+      service.findByOrganization('other', 'current'),
+    ).rejects.toThrow('access');
+    expect(findMany).not.toHaveBeenCalled();
   });
 });

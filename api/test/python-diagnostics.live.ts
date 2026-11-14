@@ -36,6 +36,8 @@ if (!pythonUrl || !serviceKey) {
 
 const runId = '00000000-0000-4000-8000-000000000001';
 const fixtureRun = {
+  _count: { logs: 1 },
+  dispatchEnabled: false,
   id: runId,
   status: 'FAILED',
   logs: [

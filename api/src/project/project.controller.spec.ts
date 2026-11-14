@@ -1,18 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { ProjectController } from './project.controller.js';
-
 describe('ProjectController', () => {
-  let controller: ProjectController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [ProjectController],
-    }).compile();
-
-    controller = module.get<ProjectController>(ProjectController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('uses the authenticated tenant for project reads', () => {
+    const service = { findOne: vi.fn() };
+    new ProjectController(service as never).findOne('project', {
+      sub: 'user',
+      organizationId: 'org',
+      role: 'MEMBER',
+    });
+    expect(service.findOne).toHaveBeenCalledWith('project', 'org');
   });
 });

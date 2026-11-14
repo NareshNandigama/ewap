@@ -1,18 +1,13 @@
-import { Test, TestingModule } from '@nestjs/testing';
+import { describe, expect, it, vi } from 'vitest';
 import { WorkflowController } from './workflow.controller.js';
-
 describe('WorkflowController', () => {
-  let controller: WorkflowController;
-
-  beforeEach(async () => {
-    const module: TestingModule = await Test.createTestingModule({
-      controllers: [WorkflowController],
-    }).compile();
-
-    controller = module.get<WorkflowController>(WorkflowController);
-  });
-
-  it('should be defined', () => {
-    expect(controller).toBeDefined();
+  it('uses the authenticated tenant for workflow reads', () => {
+    const service = { findAll: vi.fn() };
+    new WorkflowController(service as never).findAll({
+      sub: 'user',
+      organizationId: 'org',
+      role: 'MEMBER',
+    });
+    expect(service.findAll).toHaveBeenCalledWith('org');
   });
 });

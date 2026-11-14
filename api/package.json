@@ -26,7 +26,9 @@
     "test:membership:db": "node scripts/analytics-local.mjs membership",
     "test:workflow-status:db": "node scripts/analytics-local.mjs status",
     "analytics:explain": "node scripts/analytics-local.mjs explain",
-    "test:startup:image": "node scripts/startup-image.mjs"
+    "test:startup:image": "node scripts/startup-image.mjs",
+    "test:hardening:db": "node scripts/analytics-local.mjs hardening",
+    "schema:check": "node ../scripts/schema-sync.mjs --check"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",

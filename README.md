@@ -24,9 +24,9 @@ analyze execution status and failures.
 - Guest access for the public demo
 - Real-time workflow status architecture using WebSockets
 - Authenticated worker status callbacks and tenant-scoped WebSocket subscriptions
-- RabbitMQ-based asynchronous workflow execution architecture
-- Redis-backed optional cache layer for workflow runs and diagnostic results
-- Streaming AI responses
+- Transactional workflow dispatch outbox, recoverable worker leases, and confirmed RabbitMQ retry/DLQ handoff
+- Optional Redis diagnostic caching keyed by evidence and model/prompt versions
+- SSE AI responses with persisted completion, failure, and cancellation states
 - Workflow-run-aware AI diagnostics
 - AI conversation persistence
 - Dockerized backend
@@ -157,8 +157,10 @@ The public production demo currently runs with messaging disabled, so newly
 created workflow runs are persisted as PENDING rather than dispatched to a
 background worker.
 
-Worker callback credentials, socket authentication, configuration, and current
-delivery limits are documented in [workflow status security](docs/workflow-status-security.md).
+Worker callback credentials and socket authentication are documented in
+[workflow status security](docs/workflow-status-security.md). Durable dispatch,
+execution recovery, streaming, database TLS/readiness, and cross-replica status
+fan-out are documented in [architecture hardening](docs/architecture-hardening.md).
 
 
 ## AI Assistant
@@ -230,7 +232,7 @@ and a normal JWT.
 ### Cache
 
 - Redis 7 for optional response caching and short-lived workflow metadata
-- Cache is tenant-scoped and safe to disable without breaking PostgreSQL-backed requests
+- Diagnostic caching is tenant-scoped and optional; workflow reads use PostgreSQL directly
 
 ### Frontend
 
@@ -354,9 +356,8 @@ EWAP currently focuses on:
 - Conversation persistence
 - Production deployment
 
-Future iterations can extend the platform with areas such as retry/DLQ
-processing, transactional outbox, observability, RAG, AI evaluation, and
-more granular authorization.
+Future iterations can extend the platform with real workflow steps, rate and cost
+controls, observability, RAG, AI evaluation, and more granular authorization.
 
 
 ## Author

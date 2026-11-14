@@ -8,10 +8,7 @@ type RouteContext = {
   }>;
 };
 
-async function proxyRequest(
-  request: NextRequest,
-  context: RouteContext,
-) {
+async function proxyRequest(request: NextRequest, context: RouteContext) {
   if (!EWAP_API_URL) {
     return Response.json(
       {
@@ -25,10 +22,7 @@ async function proxyRequest(
 
   const { path } = await context.params;
 
-  const backendUrl = new URL(
-    `/api/v1/${path.join('/')}`,
-    EWAP_API_URL,
-  );
+  const backendUrl = new URL(`/api/v1/${path.join('/')}`, EWAP_API_URL);
 
   // Preserve query parameters:
   // /api/v1/ai/conversations?workflowRunId=123
@@ -36,11 +30,9 @@ async function proxyRequest(
 
   const headers = new Headers();
 
-  const contentType =
-    request.headers.get('content-type');
+  const contentType = request.headers.get('content-type');
 
-  const authorization =
-    request.headers.get('authorization');
+  const authorization = request.headers.get('authorization');
 
   if (contentType) {
     headers.set('content-type', contentType);
@@ -50,42 +42,38 @@ async function proxyRequest(
     headers.set('authorization', authorization);
   }
 
-  const hasBody =
-    request.method !== 'GET' &&
-    request.method !== 'HEAD';
+  const idempotencyKey = request.headers.get('idempotency-key');
+  if (idempotencyKey) headers.set('idempotency-key', idempotencyKey);
+
+  const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
 
   const response = await fetch(backendUrl, {
     method: request.method,
     headers,
-    body: hasBody
-      ? await request.arrayBuffer()
-      : undefined,
+    body: hasBody ? await request.arrayBuffer() : undefined,
     cache: 'no-store',
+    signal: request.signal,
   });
 
   const responseHeaders = new Headers();
 
-  const responseContentType =
-    response.headers.get('content-type');
+  const responseContentType = response.headers.get('content-type');
 
   if (responseContentType) {
-    responseHeaders.set(
-      'content-type',
-      responseContentType,
-    );
+    responseHeaders.set('content-type', responseContentType);
   }
 
   // AI streaming returns the conversation ID
   // through this response header.
-  const conversationId =
-    response.headers.get('x-conversation-id');
+  const conversationId = response.headers.get('x-conversation-id');
 
   if (conversationId) {
-    responseHeaders.set(
-      'x-conversation-id',
-      conversationId,
-    );
+    responseHeaders.set('x-conversation-id', conversationId);
   }
+
+  responseHeaders.set('cache-control', 'no-store, no-transform');
+  if (responseContentType?.includes('text/event-stream'))
+    responseHeaders.set('x-accel-buffering', 'no');
 
   return new Response(response.body, {
     status: response.status,

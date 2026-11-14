@@ -7,6 +7,7 @@ import {
 } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
+import { WorkflowFanoutService } from './workflow-fanout.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 export const workflowRoom = (organizationId: string) =>
@@ -21,9 +22,27 @@ export class WorkflowGateway
   constructor(
     private readonly jwt: JwtService,
     private readonly prisma: PrismaService,
+    private readonly fanout: WorkflowFanoutService,
   ) {}
 
+  private unsubscribe?: () => void;
+  onModuleDestroy() {
+    this.unsubscribe?.();
+  }
   afterInit(server: Server) {
+    this.unsubscribe = this.fanout.subscribe(
+      (hint) => {
+        server
+          .to(workflowRoom(hint.organizationId))
+          .emit('workflow.status.changed', {
+            runId: hint.runId,
+            status: hint.status,
+          });
+      },
+      () => {
+        server.emit('workflow.updates.resync');
+      },
+    );
     server.use(async (socket, next) => {
       try {
         const token: unknown = socket.handshake.auth?.token;
@@ -89,8 +108,6 @@ export class WorkflowGateway
     runId: string,
     status: string,
   ) {
-    this.server
-      .to(workflowRoom(organizationId))
-      .emit('workflow.status.changed', { runId, status });
+    return this.fanout.publish({ organizationId, runId, status });
   }
 }

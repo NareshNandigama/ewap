@@ -8,6 +8,7 @@ import {
   type WorkflowStatusUpdate,
 } from '@/hooks/useWorkflowUpdates';
 
+import { apiRequest } from '@/lib/api/client';
 import AiAssistant from './AiAssistant';
 
 type WorkflowExecutionLog = {
@@ -23,12 +24,7 @@ type WorkflowRun = {
   workflowId: string;
   createdAt: string;
   completedAt: string | null;
-  status:
-    | 'PENDING'
-    | 'RUNNING'
-    | 'SUCCESS'
-    | 'FAILED'
-    | 'CANCELLED';
+  status: 'PENDING' | 'RUNNING' | 'SUCCESS' | 'FAILED' | 'CANCELLED';
 
   logs: WorkflowExecutionLog[];
 
@@ -47,9 +43,7 @@ type RunDetailsClientProps = {
   run: WorkflowRun;
 };
 
-export default function RunDetailsClient({
-  run,
-}: RunDetailsClientProps) {
+export default function RunDetailsClient({ run }: RunDetailsClientProps) {
   const [currentRun, setCurrentRun] = useState(run);
   const [isAiOpen, setIsAiOpen] = useState(false);
 
@@ -67,8 +61,15 @@ export default function RunDetailsClient({
     [run.id],
   );
 
+  const handleResync = useCallback(() => {
+    void apiRequest<WorkflowRun>(`/workflow-runs/${run.id}`)
+      .then(setCurrentRun)
+      .catch(() => undefined);
+  }, [run.id]);
+
   useWorkflowUpdates({
     onStatusChange: handleStatusChange,
+    onResync: handleResync,
   });
 
   function getStatusClass() {
@@ -91,9 +92,7 @@ export default function RunDetailsClient({
     }
   }
 
-  function getLogLevelClass(
-    level: WorkflowExecutionLog['level'],
-  ) {
+  function getLogLevelClass(level: WorkflowExecutionLog['level']) {
     switch (level) {
       case 'SUCCESS':
         return 'bg-green-100 text-green-700';
@@ -121,10 +120,7 @@ export default function RunDetailsClient({
           }
           className="text-sm font-medium text-slate-500 transition hover:text-slate-900"
         >
-          ←{' '}
-          {currentRun.workflow
-            ? 'Back to workflow'
-            : 'Back to runs'}
+          ← {currentRun.workflow ? 'Back to workflow' : 'Back to runs'}
         </Link>
 
         <p className="mt-5 text-sm font-semibold uppercase tracking-wide text-blue-600">
@@ -151,15 +147,11 @@ export default function RunDetailsClient({
       </div>
 
       <section className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">
-          Run Summary
-        </h2>
+        <h2 className="text-lg font-semibold text-slate-950">Run Summary</h2>
 
         <div className="mt-5 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           <div>
-            <p className="text-sm text-slate-500">
-              Status
-            </p>
+            <p className="text-sm text-slate-500">Status</p>
 
             <span
               className={`mt-2 inline-flex rounded-full px-3 py-1 text-xs font-semibold ${getStatusClass()}`}
@@ -169,9 +161,7 @@ export default function RunDetailsClient({
           </div>
 
           <div>
-            <p className="text-sm text-slate-500">
-              Workflow
-            </p>
+            <p className="text-sm text-slate-500">Workflow</p>
 
             {currentRun.workflow ? (
               <Link
@@ -188,29 +178,21 @@ export default function RunDetailsClient({
           </div>
 
           <div>
-            <p className="text-sm text-slate-500">
-              Started
-            </p>
+            <p className="text-sm text-slate-500">Started</p>
 
             <p className="mt-1 text-sm font-medium text-slate-800">
-              {new Date(
-                currentRun.createdAt,
-              ).toLocaleString('en-IN', {
+              {new Date(currentRun.createdAt).toLocaleString('en-IN', {
                 timeZone: 'Asia/Kolkata',
               })}
             </p>
           </div>
 
           <div>
-            <p className="text-sm text-slate-500">
-              Completed
-            </p>
+            <p className="text-sm text-slate-500">Completed</p>
 
             <p className="mt-1 text-sm font-medium text-slate-800">
               {currentRun.completedAt
-                ? new Date(
-                    currentRun.completedAt,
-                  ).toLocaleString('en-IN', {
+                ? new Date(currentRun.completedAt).toLocaleString('en-IN', {
                     timeZone: 'Asia/Kolkata',
                   })
                 : 'Not completed'}
@@ -220,9 +202,7 @@ export default function RunDetailsClient({
 
         {currentRun.workflow?.project && (
           <div className="mt-6 border-t border-slate-200 pt-5">
-            <p className="text-sm text-slate-500">
-              Project
-            </p>
+            <p className="text-sm text-slate-500">Project</p>
 
             <Link
               href={`/projects/${currentRun.workflow.project.id}`}
@@ -248,16 +228,13 @@ export default function RunDetailsClient({
             </div>
 
             <p className="mt-1 text-sm text-slate-500">
-              Investigate this workflow run using its execution
-              data.
+              Investigate this workflow run using its execution data.
             </p>
           </div>
 
           <button
             type="button"
-            onClick={() =>
-              setIsAiOpen((open) => !open)
-            }
+            onClick={() => setIsAiOpen((open) => !open)}
             className="shrink-0 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
           >
             {isAiOpen ? 'Close AI' : 'Ask AI'}
@@ -278,8 +255,7 @@ export default function RunDetailsClient({
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Runtime events recorded during this workflow
-            execution.
+            Runtime events recorded during this workflow execution.
           </p>
         </div>
 
@@ -306,9 +282,7 @@ export default function RunDetailsClient({
                   </span>
 
                   <span className="text-xs text-slate-400">
-                    {new Date(
-                      log.createdAt,
-                    ).toLocaleString('en-IN', {
+                    {new Date(log.createdAt).toLocaleString('en-IN', {
                       timeZone: 'Asia/Kolkata',
                     })}
                   </span>

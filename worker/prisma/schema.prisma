@@ -1,3 +1,4 @@
+// Generated from api/prisma/schema.prisma; edit the canonical API source.
 generator client {
   provider = "prisma-client-js"
   output   = "../src/generated/prisma"
@@ -43,6 +44,8 @@ model Project {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   workflows    Workflow[]
+
+  @@index([organizationId, id])
 }
 
 model Workflow {
@@ -54,6 +57,8 @@ model Workflow {
 
   project Project       @relation(fields: [projectId], references: [id])
   runs    WorkflowRun[]
+
+  @@index([projectId, id])
 }
 
 model WorkflowRun {
@@ -61,11 +66,20 @@ model WorkflowRun {
   workflowId        String
   createdAt         DateTime               @default(now())
   completedAt       DateTime?
+  idempotencyKey    String?                @unique
+  dispatchEnabled   Boolean                @default(false)
+  executionToken    String?
+  leaseExpiresAt    DateTime?
+  executionRetry    Int                    @default(0)
+  statusVersion     Int                    @default(0)
   status            WorkflowRunStatus
   workflow          Workflow               @relation(fields: [workflowId], references: [id])
   logs              WorkflowExecutionLog[]
   aiConversations   AiConversation[]
   integrationEvents IntegrationEvent[]
+
+  @@index([workflowId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([leaseExpiresAt])
 }
 
 model WorkflowExecutionLog {
@@ -101,6 +115,8 @@ model AiMessage {
   conversationId String
   role           AiMessageRole
   content        String
+  state          String        @default("COMPLETED")
+  finishedAt     DateTime?
   createdAt      DateTime      @default(now())
 
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -151,16 +167,19 @@ model KnowledgeDocument {
 }
 
 model KnowledgeChunk {
-  id         String   @id @default(uuid())
-  documentId String
-  chunkIndex Int
-  content    String   @db.Text
-  createdAt  DateTime @default(now())
+  id             String                      @id @default(uuid())
+  documentId     String
+  chunkIndex     Int
+  content        String                      @db.Text
+  createdAt      DateTime                    @default(now())
+  organizationId String
+  embedding      Unsupported("vector(768)")?
 
   document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@unique([documentId, chunkIndex])
   @@index([documentId])
+  @@index([organizationId])
 }
 
 enum IntegrationEventStatus {
@@ -190,4 +209,22 @@ enum WorkflowRunStatus {
   SUCCESS
   FAILED
   CANCELLED
+}
+
+// Durable dispatch/status hints. Delivery is at least once, keyed for deduplication.
+model WorkflowOutbox {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  kind        String
+  runId       String
+  workflowId  String
+  status      String?
+  retryCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  availableAt DateTime @default(now())
+  deliveredAt DateTime?
+  leaseToken  String?
+  leasedUntil DateTime?
+
+  @@index([kind, deliveredAt, availableAt])
 }

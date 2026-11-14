@@ -7,7 +7,13 @@ import { AiAgentService } from './ai-agent.service.js';
 import { PythonDiagnosticsClient } from './python-diagnostics.client.js';
 import { WorkflowDiagnosticsService } from './workflow-diagnostics.service.js';
 
-const run = { id: 'run-1', status: 'FAILED', logs: [] };
+const run = {
+  id: 'run-1',
+  status: 'FAILED',
+  logs: [],
+  _count: { logs: 0 },
+  dispatchEnabled: false,
+};
 const report = {
   analysisMode: 'deterministic',
   organizationId: 'org-1',

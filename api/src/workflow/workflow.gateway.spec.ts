@@ -3,12 +3,29 @@ import { WorkflowGateway, workflowRoom } from './workflow.gateway.js';
 
 describe('WorkflowGateway', () => {
   afterEach(() => vi.useRealTimers());
-  it('sends updates only to a server-selected tenant room', () => {
-    const gateway = new WorkflowGateway({} as never, {} as never);
+  it('publishes through fan-out and emits only to the selected tenant room', async () => {
+    let receive!: (hint: any) => void;
+    const fanout = {
+      publish: vi.fn(),
+      subscribe: vi.fn((fn) => {
+        receive = fn;
+      }),
+    };
+    const gateway = new WorkflowGateway(
+      {} as never,
+      {} as never,
+      fanout as never,
+    );
     const emit = vi.fn(),
       to = vi.fn().mockReturnValue({ emit });
-    gateway.server = { to } as never;
-    gateway.broadcastWorkflowStatus('org-a', 'run-a', 'RUNNING');
+    gateway.afterInit({ to, use: vi.fn() } as never);
+    await gateway.broadcastWorkflowStatus('org-a', 'run-a', 'RUNNING');
+    expect(fanout.publish).toHaveBeenCalledWith({
+      organizationId: 'org-a',
+      runId: 'run-a',
+      status: 'RUNNING',
+    });
+    receive({ organizationId: 'org-a', runId: 'run-a', status: 'RUNNING' });
     expect(to).toHaveBeenCalledWith(workflowRoom('org-a'));
     expect(emit).toHaveBeenCalledWith('workflow.status.changed', {
       runId: 'run-a',
@@ -17,7 +34,11 @@ describe('WorkflowGateway', () => {
   });
   it('joins the verified tenant room and disconnects at expiry', async () => {
     vi.useFakeTimers();
-    const gateway = new WorkflowGateway({} as never, {} as never);
+    const gateway = new WorkflowGateway(
+      {} as never,
+      {} as never,
+      { subscribe: vi.fn(), publish: vi.fn() } as never,
+    );
     const socket = {
       connected: true,
       data: {
@@ -36,9 +57,11 @@ describe('WorkflowGateway', () => {
   });
   it('rejects connections without a verified identity', async () => {
     const socket = { data: {}, disconnect: vi.fn(), join: vi.fn() };
-    await new WorkflowGateway({} as never, {} as never).handleConnection(
-      socket as never,
-    );
+    await new WorkflowGateway(
+      {} as never,
+      {} as never,
+      { subscribe: vi.fn(), publish: vi.fn() } as never,
+    ).handleConnection(socket as never);
     expect(socket.disconnect).toHaveBeenCalledWith(true);
     expect(socket.join).not.toHaveBeenCalled();
   });

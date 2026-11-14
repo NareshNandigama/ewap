@@ -63,40 +63,22 @@ describe('WorkflowRunService', () => {
     expect(service).toBeDefined();
   });
 
-  it('returns cached workflow runs on a hit', async () => {
-    const cached = [{ id: 'run-1', status: 'SUCCESS' }];
-    redis.get.mockResolvedValue(cached);
-
-    await expect(service.findAll('org-1')).resolves.toEqual(cached);
-    expect(prisma.workflowRun.findMany).not.toHaveBeenCalled();
-  });
-
-  it('stores workflow-run list results in Redis on a miss', async () => {
-    const rows = [{ id: 'run-1', status: 'PENDING' }];
-    redis.get.mockResolvedValue(null);
-    prisma.workflowRun.findMany.mockResolvedValue(rows);
-
-    await expect(service.findAll('org-1')).resolves.toEqual(rows);
-    expect(redis.set).toHaveBeenCalledWith(
-      'org:org-1:workflow-runs:list',
-      rows,
-      60,
+  it('ignores old cached snapshots and loads current tenant-scoped rows', async () => {
+    redis.get.mockResolvedValue([{ id: 'run-1', status: 'PENDING' }]);
+    prisma.workflowRun.findMany.mockResolvedValue([
+      { id: 'run-1', status: 'SUCCESS' },
+    ]);
+    await expect(service.findAll('org-1')).resolves.toEqual([
+      { id: 'run-1', status: 'SUCCESS' },
+    ]);
+    expect(redis.get).not.toHaveBeenCalled();
+    expect(redis.set).not.toHaveBeenCalled();
+    expect(prisma.workflowRun.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workflow: { project: { organizationId: 'org-1' } } },
+      }),
     );
   });
-
-  it('stores individual run lookups in Redis', async () => {
-    const run = { id: 'run-1', status: 'RUNNING', logs: [] };
-    redis.get.mockResolvedValue(null);
-    prisma.workflowRun.findFirst.mockResolvedValue(run);
-
-    await expect(service.findOne('run-1', 'org-1')).resolves.toEqual(run);
-    expect(redis.set).toHaveBeenCalledWith(
-      'org:org-1:workflow-runs:run:run-1',
-      run,
-      60,
-    );
-  });
-
   it('falls back cleanly when Redis is unavailable', async () => {
     const rows = [{ id: 'run-1' }];
     redis.isAvailable.mockReturnValue(false);
@@ -120,9 +102,7 @@ describe('WorkflowRunService', () => {
 
     await service.invalidateRunCaches('run-1');
 
-    expect(redis.del).toHaveBeenCalledWith(
-      'org:org-1:workflow-runs:run:run-1',
-    );
+    expect(redis.del).toHaveBeenCalledWith('org:org-1:workflow-runs:run:run-1');
     expect(redis.flushPattern).toHaveBeenCalledWith(
       'org:org-1:workflow-runs:*',
     );

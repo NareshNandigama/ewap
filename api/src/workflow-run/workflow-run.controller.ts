@@ -1,6 +1,7 @@
 import {
   Controller,
   Get,
+  Headers,
   Param,
   ParseUUIDPipe,
   Post,
@@ -27,8 +28,13 @@ export class WorkflowRunController {
     @Param('workflowId', new ParseUUIDPipe())
     workflowId: string,
     @CurrentUser() user: JwtPayload,
+    @Headers('idempotency-key') requestKey?: string,
   ) {
-    return this.workflowRunService.create(workflowId, user.organizationId);
+    return this.workflowRunService.create(
+      workflowId,
+      user.organizationId,
+      requestKey,
+    );
   }
 
   @Get('workflows/:workflowId/runs')

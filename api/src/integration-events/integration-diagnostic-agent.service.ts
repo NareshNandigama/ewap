@@ -1,3 +1,5 @@
+import { GEMINI_MODEL } from '../ai/providers/gemini.provider.js';
+import { PROVIDER_LIMITS_VERSION } from '../ai/providers/provider-limits.js';
 import { createHash } from 'node:crypto';
 
 import { BadRequestException, Inject, Injectable } from '@nestjs/common';
@@ -27,12 +29,13 @@ export class IntegrationDiagnosticAgentService {
     private readonly redis: RedisService,
   ) {
     this.graph = new StateGraph(DiagnosticState)
-      .addNode('fetchEvidence', async (state) => {
-        const events = await this.events.list(state.organizationId, state.externalRunId);
-        return { hasEvents: events.length > 0, evidence: JSON.stringify(events, null, 2) };
-      })
+      .addNode('fetchEvidence', async (state) => ({
+        hasEvents: state.hasEvents,
+        evidence: state.evidence,
+      }))
       .addNode('noEvidence', async () => ({
-        answer: 'No integration events were found for this run in your organization. Submit diagnostic events before requesting an AI analysis.',
+        answer:
+          'No integration events were found for this run in your organization. Submit diagnostic events before requesting an AI analysis.',
       }))
       .addNode('diagnose', async (state) => {
         const answer = await this.llm.generate(`
@@ -62,11 +65,23 @@ Events (latest first): ${state.evidence}
       .compile();
   }
 
-  private buildCacheKey(organizationId: string, externalRunId: string, question: string): string {
+  private buildCacheKey(
+    organizationId: string,
+    externalRunId: string,
+    question: string,
+    evidence: string,
+  ): string {
     const hash = createHash('sha256')
-      .update(question.trim().toLowerCase())
-      .digest('hex')
-      .slice(0, 16);
+      .update(
+        JSON.stringify([
+          'integration-prompt-v2',
+          GEMINI_MODEL,
+          PROVIDER_LIMITS_VERSION,
+          question,
+          evidence,
+        ]),
+      )
+      .digest('hex');
 
     return `org:${organizationId}:integration-diagnostics:${externalRunId}:${hash}`;
   }
@@ -76,29 +91,61 @@ Events (latest first): ${state.evidence}
       return null;
     }
 
-    return this.redis.get<{ answer: string }>(cacheKey);
+    return this.redis.get<{ answer: string }>(cacheKey).catch(() => null);
   }
 
-  private async writeCachedAnswer(cacheKey: string, answer: string): Promise<void> {
+  private async writeCachedAnswer(
+    cacheKey: string,
+    answer: string,
+  ): Promise<void> {
     if (!this.redis.isAvailable()) {
       return;
     }
 
-    await this.redis.set(cacheKey, { answer }, DIAGNOSTIC_CACHE_TTL_SECONDS);
+    await this.redis
+      .set(cacheKey, { answer }, DIAGNOSTIC_CACHE_TTL_SECONDS)
+      .catch(() => false);
   }
 
-  async diagnose(organizationId: string, externalRunId: string, question: string) {
-    if (!organizationId) throw new BadRequestException('Organization context required');
-    if (typeof externalRunId !== 'string' || !externalRunId.trim() || externalRunId.length > 200) {
+  async diagnose(
+    organizationId: string,
+    externalRunId: string,
+    question: string,
+  ) {
+    if (!organizationId)
+      throw new BadRequestException('Organization context required');
+    if (
+      typeof externalRunId !== 'string' ||
+      !externalRunId.trim() ||
+      externalRunId.length > 200
+    ) {
       throw new BadRequestException('Valid externalRunId required');
     }
-    if (typeof question !== 'string' || !question.trim() || question.length > 2000) {
-      throw new BadRequestException('Valid question required (max 2000 characters)');
+    if (
+      typeof question !== 'string' ||
+      !question.trim() ||
+      question.length > 2000
+    ) {
+      throw new BadRequestException(
+        'Valid question required (max 2000 characters)',
+      );
     }
 
     const normalizedExternalRunId = externalRunId.trim();
     const normalizedQuestion = question.trim();
-    const cacheKey = this.buildCacheKey(organizationId, normalizedExternalRunId, normalizedQuestion);
+    // Resolve the authorized, bounded snapshot before cache lookup. A late fill for
+    // older evidence has a different key and cannot hide new events.
+    const events = await this.events.list(
+      organizationId,
+      normalizedExternalRunId,
+    );
+    const evidence = JSON.stringify(events, null, 2);
+    const cacheKey = this.buildCacheKey(
+      organizationId,
+      normalizedExternalRunId,
+      normalizedQuestion,
+      evidence,
+    );
     const cached = await this.readCachedAnswer(cacheKey);
 
     if (cached?.answer) {
@@ -109,8 +156,8 @@ Events (latest first): ${state.evidence}
       organizationId,
       externalRunId: normalizedExternalRunId,
       question: normalizedQuestion,
-      evidence: '',
-      hasEvents: false,
+      evidence,
+      hasEvents: events.length > 0,
       answer: '',
     });
 

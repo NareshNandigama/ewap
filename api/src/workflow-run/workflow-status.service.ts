@@ -59,7 +59,7 @@ export class WorkflowStatusService {
     ) {
       throw new ConflictException('Stale workflow status notification');
     }
-    this.gateway.broadcastWorkflowStatus(
+    await this.gateway.broadcastWorkflowStatus(
       organizationId,
       current.id,
       current.status,

@@ -1,11 +1,9 @@
 import { Controller } from '@nestjs/common';
+import { Ctx, EventPattern, Payload } from '@nestjs/microservices';
 import {
-  Ctx,
-  EventPattern,
-  Payload,
-} from '@nestjs/microservices';
-
-import { WorkflowConsumerService } from './workflow-consumer.service.js';
+  WorkflowConsumerService,
+  WorkflowExecutionFailed,
+} from './workflow-consumer.service.js';
 import { RabbitMqPublisherService } from '../messaging/rabbitmq-publisher.service.js';
 import { MAX_RETRIES } from '../messaging/messaging.constants.js';
 
@@ -15,91 +13,54 @@ export class WorkflowConsumerController {
     private readonly workflowConsumerService: WorkflowConsumerService,
     private readonly rabbitMqPublisherService: RabbitMqPublisherService,
   ) {}
-
   @EventPattern('workflow.execute')
   async handleWorkflowExecution(
-    @Payload()
-    data: {
-      runId: string;
-      workflowId: string;
-    },
+    @Payload() data: { runId: string; workflowId: string },
     @Ctx() context: any,
   ) {
-    console.log('🔥 Workflow execution received!');
-    console.log('Run ID:', data.runId);
-    console.log('Workflow ID:', data.workflowId);
-
     const channel = context.getChannelRef();
     const message = context.getMessage();
-
     const retryCount = Number(
       message.properties.headers?.['x-retry-count'] ?? 0,
     );
-
+    if (
+      !data ||
+      ![data.runId, data.workflowId].every(
+        (id) => typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id),
+      ) ||
+      !Number.isInteger(retryCount) ||
+      retryCount < 0 ||
+      retryCount > MAX_RETRIES
+    ) {
+      // Reject malformed input without routing it into execution.
+      channel.nack(message, false, false);
+      return;
+    }
     try {
-      const executed =
-        await this.workflowConsumerService.executeWorkflow(
-          data.runId,
-          retryCount,
-        );
-
-      // Duplicate delivery.
-      // The workflow was already processed, so do not execute it again.
-      if (!executed) {
-        console.log(
-          '⏭️ Duplicate message detected. ACKing without re-execution.',
-        );
-
-        channel.ack(message);
-        return;
-      }
-
-      // Workflow execution completed successfully.
+      await this.workflowConsumerService.executeWorkflow(
+        data.runId,
+        retryCount,
+      );
       channel.ack(message);
-
-      console.log('📨 RabbitMQ message ACKed');
     } catch (error) {
-      console.error(
-        `❌ WorkflowRun ${data.runId} failed`,
-      );
-
-      console.log(
-        `🔁 Current retry count: ${retryCount}`,
-      );
-
-      if (retryCount >= MAX_RETRIES) {
-        console.log(
-          `☠️ Max retries reached. Sending WorkflowRun ${data.runId} to DLQ.`,
-        );
-
-        await this.rabbitMqPublisherService.publishToDlq(
-          {
-            runId: data.runId,
-            workflowId: data.workflowId,
-          },
-          retryCount,
-        );
-
+      try {
+        if (
+          error instanceof WorkflowExecutionFailed &&
+          retryCount >= MAX_RETRIES
+        )
+          await this.rabbitMqPublisherService.publishToDlq(data, retryCount);
+        else
+          // Infrastructure/lease errors preserve the attempt number. Only a
+          // persisted FAILED outcome consumes the workflow retry allowance.
+          await this.rabbitMqPublisherService.publishRetry(
+            data,
+            retryCount + (error instanceof WorkflowExecutionFailed ? 1 : 0),
+          );
         channel.ack(message);
-
-        console.log(
-          '📨 Original message ACKed after moving to DLQ',
-        );
-
-        return;
+      } catch {
+        // Keep the original delivery when confirmation/routing/reconnect fails.
+        channel.nack(message, false, true);
       }
-
-      await this.rabbitMqPublisherService.publishRetry(
-        {
-          runId: data.runId,
-          workflowId: data.workflowId,
-        },
-        retryCount + 1,
-      );
-
-      channel.ack(message);
-
-      console.log('📨 Original message ACKed');
     }
   }
 }

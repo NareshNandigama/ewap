@@ -65,6 +65,12 @@ model WorkflowRun {
   workflowId        String
   createdAt         DateTime               @default(now())
   completedAt       DateTime?
+  idempotencyKey    String?                @unique
+  dispatchEnabled   Boolean                @default(false)
+  executionToken    String?
+  leaseExpiresAt    DateTime?
+  executionRetry    Int                    @default(0)
+  statusVersion     Int                    @default(0)
   status            WorkflowRunStatus
   workflow          Workflow               @relation(fields: [workflowId], references: [id])
   logs              WorkflowExecutionLog[]
@@ -72,6 +78,7 @@ model WorkflowRun {
   integrationEvents IntegrationEvent[]
 
   @@index([workflowId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([leaseExpiresAt])
 }
 
 model WorkflowExecutionLog {
@@ -107,6 +114,8 @@ model AiMessage {
   conversationId String
   role           AiMessageRole
   content        String
+  state          String        @default("COMPLETED")
+  finishedAt     DateTime?
   createdAt      DateTime      @default(now())
 
   conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
@@ -199,4 +208,22 @@ enum WorkflowRunStatus {
   SUCCESS
   FAILED
   CANCELLED
+}
+
+// Durable dispatch/status hints. Delivery is at least once, keyed for deduplication.
+model WorkflowOutbox {
+  id          String   @id @default(uuid())
+  key         String   @unique
+  kind        String
+  runId       String
+  workflowId  String
+  status      String?
+  retryCount  Int      @default(0)
+  createdAt   DateTime @default(now())
+  availableAt DateTime @default(now())
+  deliveredAt DateTime?
+  leaseToken  String?
+  leasedUntil DateTime?
+
+  @@index([kind, deliveredAt, availableAt])
 }

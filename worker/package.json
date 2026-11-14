@@ -7,7 +7,7 @@
   "license": "UNLICENSED",
   "type": "module",
   "scripts": {
-    "build": "nest build",
+    "build": "node ../scripts/schema-sync.mjs --check && nest build",
     "deploy": "nest deploy",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
@@ -19,7 +19,9 @@
     "test:watch": "vitest",
     "test:cov": "vitest run --coverage",
     "test:debug": "vitest --inspect-brk --no-file-parallelism",
-    "test:e2e": "vitest run --config ./vitest.config.e2e.ts"
+    "test:e2e": "vitest run --config ./vitest.config.e2e.ts",
+    "prisma:generate": "node ../scripts/schema-sync.mjs && prisma generate",
+    "test:broker:local": "BROKER_HARDENING_URL=amqp://hardening:synthetic-hardening-password@127.0.0.1:15673/ewap_hardening vitest run --config vitest.config.broker.ts"
   },
   "dependencies": {
     "@nestjs/common": "^12.0.1",

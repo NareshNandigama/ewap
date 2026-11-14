@@ -24,12 +24,12 @@ feature task, following the approved review. Work remains one item at a time.
 | P0 / H1 | Atomic organization/owner registration; protect tenant membership and user/organization reads | Complete locally; verified, not deployed |
 | P1 / H2 | Authenticate worker status ingress and isolate WebSocket events by tenant | Complete locally; verified, not deployed |
 | P1 / H3 | Fix environment-only API container startup and configuration validation | Complete locally; verified, not deployed |
-| P1 / H4 | Atomic run dispatch/outbox, recoverable execution claims, independent status-event delivery | Pending |
-| P1 / H5 | Confirm retry/DLQ publication before ACK; reconnect and apply backpressure | Pending |
-| P2 / H6 | Bind chat conversations and writes to the authorized user/tenant/run | Pending |
-| P2 / H7 | Model streaming terminal states, propagate cancellation, and bound provider work | Pending |
-| P2 / H8 | Improve cache invalidation and diagnostic evidence/version freshness | Pending |
-| P2 / H9 | Consolidate schema ownership, validate database TLS, readiness, and cross-replica socket fan-out | Pending |
+| P1 / H4 | Atomic run dispatch/outbox, recoverable execution claims, independent status-event delivery | Complete locally; verified, not deployed |
+| P1 / H5 | Confirm retry/DLQ publication before ACK; reconnect and apply backpressure | Complete locally; verified, not deployed |
+| P2 / H6 | Bind chat conversations and writes to the authorized user/tenant/run | Complete locally; verified, not deployed |
+| P2 / H7 | Model streaming terminal states, propagate cancellation, and bound provider work | Complete locally; verified, not deployed |
+| P2 / H8 | Improve cache invalidation and diagnostic evidence/version freshness | Complete locally; verified, not deployed |
+| P2 / H9 | Consolidate schema ownership, validate database TLS, readiness, and cross-replica socket fan-out | Complete locally; verified, not deployed |
 
 After P0/P1 access and execution fixes, resume Task 3 rate limiting alongside
 the remaining P2 work according to product impact. Task IDs 1–8 below retain
@@ -345,6 +345,78 @@ synthetic database volume was retained. Existing package engine/peer warnings
 appeared during Docker dependency installation but did not prevent build/startup.
 Next priority: H4, atomic run dispatch and recoverable execution claims.
 The full API suite was not rerun; existing scaffold failures are not claimed fixed.
+
+## H4–H9 implementation and verification
+
+Implemented November 14, 2026. [Architecture hardening](architecture-hardening.md)
+documents the implemented flows, trust boundaries, trade-offs, rollout contract,
+commands, and remaining operational limits. All six branch hardening items are
+complete locally; the broader feature Tasks 3–8 remain separate pending work.
+
+- H4: atomic run/outbox creation, scoped request idempotency, confirmed dispatch
+  relay, recoverable fenced execution leases/heartbeat, and independent durable
+  status delivery. Initial dispatch state is visible in run details.
+- H5: confirm/mandatory retry and DLQ publication before ACK, bounded pending
+  publication/prefetch, socket-drain handling, reconnect and topology recreation.
+- H6: current user/tenant/run authorization before conversation writes, history,
+  or provider calls; same-owner cross-run conversation reuse is rejected.
+- H7: persisted STREAMING/COMPLETED/FAILED/CANCELLED states, SSE terminal events,
+  frontend completion validation, disconnect propagation through the proxy,
+  provider input/output/concurrency/deadline bounds, and zero SDK retries.
+- H8: authoritative PostgreSQL workflow reads, bounded SCAN invalidation, and
+  diagnostic keys tied to the exact evidence/question/prompt/model versions.
+- H9: canonical API schema/TLS helper with checked worker generation, verified
+  database TLS, schema/dependency readiness, and tenant-isolated PostgreSQL status
+  fan-out across replicas with subscriber reconnect/resynchronization.
+
+Validation on Node 24.20.0:
+
+- Full standard API Vitest suite: 177 passed across 36 files. Full standard worker
+  suite: 30 passed across 6 files. Previously broken scaffold tests now exercise
+  relevant tenant delegation/authorization and readiness with explicit fixtures.
+  This does not claim every optional e2e/live configuration was run.
+- Hardening PostgreSQL/live HTTP: 14 passed, including concurrent idempotency,
+  atomic rollback, disabled dispatch, broker-outage outbox retention, duplicate
+  claims, expired-lease recovery/fencing, independent status delivery, chat
+  isolation, stream completion/failure, client disconnect, and no writes on denial.
+- Real PostgreSQL/HTTP/Socket.IO: 14 passed across two independent NestJS API
+  instances, including tenant isolation, cross-replica delivery, readiness during
+  subscriber loss, and socket resynchronization after subscriber reconnect.
+- Real isolated RabbitMQ: 3 passed for persistent retry headers, mandatory
+  unroutable rejection, and reconnect/topology recreation/DLQ confirmation.
+  Unit tests separately exercise pending confirmations, publication failures,
+  retry/DLQ NACK behavior, and bounded pending work.
+- Analytics and membership PostgreSQL/HTTP regressions: 15 and 19 passed, respectively.
+- Real PostgreSQL TLS: 3 passed (trusted CA accepted; untrusted CA and hostname
+  mismatch rejected). The compiled production API became ready with injected
+  DB_* and its CA, no DATABASE_URL or `.env`, bound to loopback in a fresh directory.
+- Frontend fragmented-SSE/Unicode/terminal-state tests: 2 passed. Frontend
+  production webpack build and TypeScript checks passed. Targeted frontend lint
+  passed with the existing TanStack Table React Compiler compatibility warning.
+- API/worker builds and lint passed; canonical schema/helper drift check passed.
+- The two new additive migrations were applied only to isolated fixtures. No
+  historical migration changed; no application/production data was deleted.
+
+The first database/socket/broker checks ran against Docker PostgreSQL 16.16 and
+RabbitMQ. A later API image rebuild failed when Docker's VM storage became
+read-only, with the host reporting low available disk space. No images, user
+containers, or database volumes were pruned. Only the frontend compiler cache
+created during this task was removed. Remaining database/HTTP/TLS checks used a
+fresh loopback PostgreSQL 17.11/pgvector host fixture on port 15433. Production
+startup was verified on the host, not in a newly rebuilt Node 22 image. Docker
+image re-verification remains an environment follow-up, not a passing result.
+
+All test credentials/evidence are synthetic. No real model requests, paid
+resources, cloud deployment, or application migrations occurred. The isolated host PostgreSQL fixture was stopped, with data retained at
+`/private/tmp/ewap-hardening-pg-2xnk4ryk`. Docker fixture cleanup was attempted
+without volume deletion but could not complete because Docker Desktop could not
+start; its fixture containers/volumes remain for later cleanup. The real executor contract,
+provider usage/cost attribution, durable notification replay, and cross-tenant
+rate/spend controls are not implied complete by these hardening changes.
+
+Next product task: Task 3, Redis rate limiting. Deployment requires the additive
+migrations, trusted database CA configuration, and coordinated API/worker/frontend
+release; existing pending runs are not retroactively dispatched.
 
 ## Engineering acceptance criteria
 

@@ -1,3 +1,4 @@
+import { DispatchOutboxService } from './dispatch-outbox.service.js';
 import { Module } from '@nestjs/common';
 
 import { WorkflowRunController } from './workflow-run.controller.js';
@@ -25,7 +26,12 @@ import { WorkerStatusGuard } from './worker-status.guard.js';
 
   controllers: [WorkflowRunController, WorkflowStatusController],
 
-  providers: [WorkflowRunService, WorkflowStatusService, WorkerStatusGuard],
+  providers: [
+    DispatchOutboxService,
+    WorkflowRunService,
+    WorkflowStatusService,
+    WorkerStatusGuard,
+  ],
 
   exports: [WorkflowRunService],
 })

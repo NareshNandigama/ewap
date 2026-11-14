@@ -20,7 +20,7 @@ describe('WorkflowRunController', () => {
     await controller.findByWorkflow('workflow', user);
     await controller.findOne('run', user);
     expect(runs.findAll).toHaveBeenCalledWith('org-a');
-    expect(runs.create).toHaveBeenCalledWith('workflow', 'org-a');
+    expect(runs.create).toHaveBeenCalledWith('workflow', 'org-a', undefined);
     expect(runs.findOne).toHaveBeenCalledWith('run', 'org-a');
   });
 });

@@ -139,7 +139,20 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      return await redis.keys(pattern);
+      const found: string[] = [];
+      let cursor = '0';
+      do {
+        const [next, batch] = await redis.scan(
+          cursor,
+          'MATCH',
+          pattern,
+          'COUNT',
+          200,
+        );
+        found.push(...batch);
+        cursor = next;
+      } while (cursor !== '0');
+      return found;
     } catch {
       return [];
     }
@@ -157,7 +170,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     }
 
     try {
-      return await redis.del(...keys);
+      let deleted = 0;
+      for (let offset = 0; offset < keys.length; offset += 200)
+        deleted += await redis.del(...keys.slice(offset, offset + 200));
+      return deleted;
     } catch {
       return 0;
     }

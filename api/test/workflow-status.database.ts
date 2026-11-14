@@ -14,6 +14,8 @@ import {
   it,
   vi,
 } from 'vitest';
+import { HealthModule } from '../src/health/health.module.js';
+import { WorkflowFanoutService } from '../src/workflow/workflow-fanout.service.js';
 import { WorkflowRunModule } from '../src/workflow-run/workflow-run.module.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { RedisService } from '../src/redis/redis.service.js';
@@ -45,6 +47,8 @@ function event<T = unknown>(
 
 describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () => {
   let app: INestApplication, origin: string, jwt: JwtService;
+  let replica: INestApplication, replicaOrigin: string;
+  const jwtKey = randomBytes(32).toString('hex');
   const sockets: Socket[] = [];
   const redis = {
     isAvailable: () => true,
@@ -77,35 +81,44 @@ describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () =>
         },
       });
     }
-    const module = await Test.createTestingModule({
-      imports: [
-        ConfigModule.forRoot({
-          isGlobal: true,
-          ignoreEnvFile: true,
-          load: [
-            () => ({
-              JWT_SECRET: randomBytes(32).toString('hex'),
-              WORKER_STATUS_API_KEY: key,
-              ENABLE_MESSAGING: false,
-            }),
-          ],
-        }),
-        WorkflowRunModule,
-      ],
-    })
-      .overrideProvider(PrismaService)
-      .useValue(db)
-      .overrideProvider(RedisService)
-      .useValue(redis)
-      .compile();
-    app = module.createNestApplication({ logger: false });
-    app.setGlobalPrefix('api/v1');
-    app.useGlobalPipes(
-      new ValidationPipe({ whitelist: true, transform: true }),
-    );
-    await app.listen(0, '127.0.0.1');
-    origin = await app.getUrl();
-    jwt = module.get(JwtService);
+    for (let index = 0; index < 2; index++) {
+      const module = await Test.createTestingModule({
+        imports: [
+          ConfigModule.forRoot({
+            isGlobal: true,
+            ignoreEnvFile: true,
+            load: [
+              () => ({
+                JWT_SECRET: jwtKey,
+                WORKER_STATUS_API_KEY: key,
+                ENABLE_MESSAGING: false,
+              }),
+            ],
+          }),
+          WorkflowRunModule,
+          HealthModule,
+        ],
+      })
+        .overrideProvider(PrismaService)
+        .useValue(db)
+        .overrideProvider(RedisService)
+        .useValue(redis)
+        .compile();
+      const instance = module.createNestApplication({ logger: false });
+      instance.setGlobalPrefix('api/v1');
+      instance.useGlobalPipes(
+        new ValidationPipe({ whitelist: true, transform: true }),
+      );
+      await instance.listen(0, '127.0.0.1');
+      if (index === 0) {
+        app = instance;
+        origin = await instance.getUrl();
+        jwt = module.get(JwtService);
+      } else {
+        replica = instance;
+        replicaOrigin = await instance.getUrl();
+      }
+    }
   });
   beforeEach(() => {
     vi.clearAllMocks();
@@ -113,6 +126,7 @@ describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () =>
   });
   afterAll(async () => {
     sockets.forEach((socket) => socket.disconnect());
+    await replica?.close();
     await app?.close();
     await db.$disconnect();
   });
@@ -127,8 +141,8 @@ describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () =>
       { expiresIn },
     );
   }
-  function client(credential?: string, auth = {}) {
-    const socket = io(origin, {
+  function client(credential?: string, auth = {}, server = origin) {
+    const socket = io(server, {
       autoConnect: false,
       transports: ['websocket'],
       reconnection: false,
@@ -212,6 +226,31 @@ describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () =>
     a.disconnect();
     b.disconnect();
   });
+  it('delivers a status callback to authenticated sockets on both API replicas', async () => {
+    const local = await connect();
+    const remote = client(await token(0), {}, replicaOrigin);
+    const other = client(await token(1), {}, replicaOrigin);
+    const ready = event(remote, 'workflow.updates.ready'),
+      otherReady = event(other, 'workflow.updates.ready');
+    remote.connect();
+    other.connect();
+    await Promise.all([ready, otherReady]);
+    const unexpected: unknown[] = [];
+    other.on('workflow.status.changed', (value) => unexpected.push(value));
+    const record = await run();
+    const localEvent = event(local, 'workflow.status.changed'),
+      remoteEvent = event(remote, 'workflow.status.changed');
+    expect(
+      (await callback({ runId: record.id, status: 'RUNNING' }, key)).status,
+    ).toBe(200);
+    expect(await localEvent).toEqual({ runId: record.id, status: 'RUNNING' });
+    expect(await remoteEvent).toEqual({ runId: record.id, status: 'RUNNING' });
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    expect(unexpected).toEqual([]);
+    local.disconnect();
+    remote.disconnect();
+    other.disconnect();
+  });
   it('does not allow client-chosen rooms or tenant overrides in the socket handshake', async () => {
     const a = client(await token(0), { organizationId: organizations[1] });
     const ready = event(a, 'workflow.updates.ready');
@@ -270,6 +309,17 @@ describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () =>
       (await callback({ runId: record.id, status: 'RUNNING' }, key)).status,
     ).toBe(503);
     expect(updates).toEqual([]);
+    socket.disconnect();
+  });
+  it('reports subscriber outages as unready and resynchronizes sockets after reconnect', async () => {
+    const socket = await connect();
+    expect((await fetch(`${origin}/api/v1/health/ready`)).status).toBe(200);
+    const resynchronized = event(socket, 'workflow.updates.resync', 7000);
+    const subscriber = app.get(WorkflowFanoutService);
+    await (subscriber as any).client.end();
+    expect((await fetch(`${origin}/api/v1/health/ready`)).status).toBe(503);
+    await resynchronized;
+    expect((await fetch(`${origin}/api/v1/health/ready`)).status).toBe(200);
     socket.disconnect();
   });
   it('disconnects an established socket at JWT expiry', async () => {

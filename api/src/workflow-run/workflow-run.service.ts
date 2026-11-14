@@ -1,10 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 
 import { PrismaService } from '../prisma/prisma.service.js';
 import { MessagingService } from '../messaging/messaging.service.js';
+import { createHash } from 'node:crypto';
 import { RedisService } from '../redis/redis.service.js';
-
-const WORKFLOW_RUN_LIST_TTL_SECONDS = 60;
 
 @Injectable()
 export class WorkflowRunService {
@@ -18,35 +21,12 @@ export class WorkflowRunService {
     return `org:${organizationId}:workflow-runs:list`;
   }
 
-  private buildWorkflowListKey(
-    organizationId: string,
-    workflowId: string,
-  ) {
+  private buildWorkflowListKey(organizationId: string, workflowId: string) {
     return `org:${organizationId}:workflows:${workflowId}:workflow-runs:list`;
   }
 
   private buildRunKey(organizationId: string, runId: string) {
     return `org:${organizationId}:workflow-runs:run:${runId}`;
-  }
-
-  private async getCached<T>(key: string): Promise<T | null> {
-    if (!this.redisService.isAvailable()) {
-      return null;
-    }
-
-    return this.redisService.get<T>(key);
-  }
-
-  private async setCached<T>(
-    key: string,
-    value: T,
-    ttlSeconds = WORKFLOW_RUN_LIST_TTL_SECONDS,
-  ): Promise<void> {
-    if (!this.redisService.isAvailable()) {
-      return;
-    }
-
-    await this.redisService.set(key, value, ttlSeconds);
   }
 
   async invalidateOrganizationCaches(organizationId: string): Promise<void> {
@@ -55,9 +35,7 @@ export class WorkflowRunService {
     }
 
     await Promise.all([
-      this.redisService.flushPattern(
-        `org:${organizationId}:workflow-runs:*`,
-      ),
+      this.redisService.flushPattern(`org:${organizationId}:workflow-runs:*`),
       this.redisService.flushPattern(
         `org:${organizationId}:workflows:*:workflow-runs:*`,
       ),
@@ -92,47 +70,79 @@ export class WorkflowRunService {
   async create(
     workflowId: string,
     organizationId: string,
+    requestKey?: string,
   ) {
+    if (
+      requestKey !== undefined &&
+      !/^[A-Za-z0-9._:-]{1,128}$/.test(requestKey)
+    )
+      throw new BadRequestException('Invalid Idempotency-Key');
     const workflow = await this.prisma.workflow.findFirst({
       where: {
         id: workflowId,
         project: {
-        organizationId,
+          organizationId,
         },
       },
     });
 
     if (!workflow) {
-      throw new NotFoundException(
-        `Workflow with id ${workflowId} not found`,
-      );
+      throw new NotFoundException(`Workflow with id ${workflowId} not found`);
     }
 
-    const run = await this.prisma.workflowRun.create({
-      data: {
-        workflowId,
-        status: 'PENDING',
-      },
-    });
-
-    await this.invalidateOrganizationCaches(organizationId);
-
-    await this.messagingService.publishWorkflowRun(
-      run.id,
-      workflowId,
+    const idempotencyKey =
+      requestKey === undefined
+        ? undefined
+        : createHash('sha256')
+            .update(JSON.stringify([organizationId, workflowId, requestKey]))
+            .digest('hex');
+    const create = () =>
+      this.prisma.$transaction(async (tx) => {
+        if (idempotencyKey) {
+          const previous = await tx.workflowRun.findUnique({
+            where: { idempotencyKey },
+          });
+          if (previous) return previous;
+        }
+        const run = await tx.workflowRun.create({
+          data: {
+            workflowId,
+            status: 'PENDING',
+            idempotencyKey,
+            dispatchEnabled: this.messagingService.isEnabled(),
+          },
+        });
+        if (run.dispatchEnabled)
+          await tx.workflowOutbox.create({
+            data: {
+              key: `dispatch:${run.id}`,
+              kind: 'EXECUTE',
+              runId: run.id,
+              workflowId,
+            },
+          });
+        return run;
+      });
+    let run;
+    try {
+      run = await create();
+    } catch (error) {
+      if (!idempotencyKey || (error as { code?: string }).code !== 'P2002')
+        throw error;
+      run = await this.prisma.workflowRun.findUnique({
+        where: { idempotencyKey },
+      });
+      if (!run) throw error;
+    }
+    // A cache outage must not change the outcome of an already committed command.
+    await this.invalidateOrganizationCaches(organizationId).catch(
+      () => undefined,
     );
 
     return run;
   }
 
   async findAll(organizationId: string) {
-    const cacheKey = this.buildOrganizationListKey(organizationId);
-    const cached = await this.getCached<typeof result>(cacheKey);
-
-    if (cached) {
-      return cached;
-    }
-
     const result = await this.prisma.workflowRun.findMany({
       where: {
         workflow: {
@@ -160,24 +170,10 @@ export class WorkflowRunService {
       },
     });
 
-    await this.setCached(cacheKey, result);
     return result;
   }
 
-  async findByWorkflow(
-    workflowId: string,
-    organizationId: string,
-  ) {
-    const cacheKey = this.buildWorkflowListKey(
-      organizationId,
-      workflowId,
-    );
-    const cached = await this.getCached<typeof result>(cacheKey);
-
-    if (cached) {
-      return cached;
-    }
-
+  async findByWorkflow(workflowId: string, organizationId: string) {
     const result = await this.prisma.workflowRun.findMany({
       where: {
         workflowId,
@@ -192,59 +188,64 @@ export class WorkflowRunService {
       },
     });
 
-    await this.setCached(cacheKey, result);
     return result;
   }
 
-  async findOne(
-    id: string,
-    organizationId: string,
-  ) {
-    const cacheKey = this.buildRunKey(organizationId, id);
-    const cached = await this.getCached<NonNullable<typeof workflowRun>>(cacheKey);
-
-    if (cached) {
-      return cached;
-    }
-
-    const workflowRun =
-      await this.prisma.workflowRun.findFirst({
-        where: {
-          id,
-          workflow: {
-            project: {
-              organizationId,
-            },
+  async findOne(id: string, organizationId: string) {
+    const workflowRun = await this.prisma.workflowRun.findFirst({
+      where: {
+        id,
+        workflow: {
+          project: {
+            organizationId,
           },
         },
-        include: {
-          logs: {
-            orderBy: {
-              createdAt: 'asc',
-            },
+      },
+      include: {
+        _count: { select: { logs: true } },
+        logs: {
+          take: 200,
+          orderBy: {
+            createdAt: 'desc',
           },
-          workflow: {
-            select: {
-              id: true,
-              name: true,
-              project: {
-                select: {
-                  id: true,
-                  name: true,
-                },
+        },
+        workflow: {
+          select: {
+            id: true,
+            name: true,
+            project: {
+              select: {
+                id: true,
+                name: true,
               },
             },
           },
         },
-      });
+      },
+    });
 
     if (!workflowRun) {
-      throw new NotFoundException(
-        `WorkflowRun with id ${id} not found`,
-      );
+      throw new NotFoundException(`WorkflowRun with id ${id} not found`);
     }
 
-    await this.setCached(cacheKey, workflowRun);
-    return workflowRun;
+    workflowRun.logs.reverse();
+    const dispatch = workflowRun.dispatchEnabled
+      ? await this.prisma.workflowOutbox.findUnique({
+          where: { key: `dispatch:${workflowRun.id}` },
+          select: { createdAt: true, deliveredAt: true, availableAt: true },
+        })
+      : null;
+    return {
+      ...workflowRun,
+      logsTruncated: workflowRun._count.logs > workflowRun.logs.length,
+      dispatch: {
+        state: !workflowRun.dispatchEnabled
+          ? 'DISABLED'
+          : dispatch?.deliveredAt
+            ? 'DISPATCHED'
+            : 'QUEUED',
+        ...dispatch,
+      },
+    };
   }
 }

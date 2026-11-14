@@ -64,9 +64,8 @@ with 503; a worker with missing/invalid key fails at startup.
 
 The worker reports callback HTTP/transport failure without throwing it into
 execution logic. An obsolete 409 is ignored. A completed workflow is not changed
-to FAILED just because its UI notification could not be delivered. There are no
-automatic callback retries or durable event storage in H2; failed notifications
-may be lost. H4 will add an outbox and independent event-delivery recovery.
+to FAILED just because its UI notification could not be delivered. H4 now persists status outbox entries and retries callback delivery independently
+from execution; see [architecture hardening](architecture-hardening.md).
 
 ## Socket protocol
 
@@ -95,16 +94,17 @@ automatically replay missed updates: REST remains the authoritative read path.
 - Database rechecks reject conflicting stale statuses, but there is no atomic
   database-to-WebSocket transaction or monotonic attempt/event revision. State
   can still change after the final read. Notifications are refresh hints, not a
-  substitute for reading the run. Attempt identity/recovery belongs to H4.
-- The callback uses exact-key deletion, but other cache paths still use broad
-  invalidation. Concurrent cache fills and recovery freshness remain H8 work.
+  substitute for reading the run. Execution claims now have fenced attempt tokens and recoverable leases; status
+  hints remain subject to the final-read race.
+- Workflow reads now bypass Redis; diagnostic answers use evidence-version keys.
+  Remaining pattern maintenance uses SCAN and bounded deletion batches.
 - Socket membership is checked at connection time; general token revocation and
   immediate connected-session permission revocation remain separate work.
-- Rooms and broadcasts are local to one API process. Use a single API replica
-  until cross-replica Socket.IO fan-out is implemented and verified. This change
-  does not add an adapter or claim multi-replica delivery.
-- Rate limits, durable event retries, broker publisher confirms, full-stack
-  deployment, and production secret rotation are not completed by this task.
+- PostgreSQL notifications now fan status hints out to every API replica, each
+  emitting only to its authenticated tenant rooms. Subscriber reconnect requests
+  frontend HTTP resynchronization. Delivery is verified across two API instances.
+- Durable event retries and broker publisher confirms are covered by H4/H5.
+  Rate limits, full-stack deployment, and production secret rotation remain later work.
 
 ## Tests
 

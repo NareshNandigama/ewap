@@ -6,11 +6,12 @@ configuration. Findings describe reachable application code; network restriction
 outside the repository may affect external exposure. No production services or
 databases were accessed. The existing uncommitted roadmap edits were preserved.
 
-Remediation update: H1 membership and H2 status-channel hardening have been
-implemented and verified locally after this review; neither has been deployed.
-See [membership authorization](membership-authorization.md) and
-[workflow status security](workflow-status-security.md). Original findings below
-document the reviewed baseline; H4–H9 remain pending in the roadmap queue.
+Remediation update: H1–H9 have been implemented and verified locally after this
+review; they have not been deployed. See [membership authorization](membership-authorization.md),
+[workflow status security](workflow-status-security.md), and
+[H4–H9 implementation and verification](architecture-hardening.md). Findings
+below describe the reviewed baseline, not the current implementation. The
+roadmap records actual verification and the Docker image re-verification limit.
 
 ## Current service boundaries
 

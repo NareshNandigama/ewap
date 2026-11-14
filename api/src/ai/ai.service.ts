@@ -41,6 +41,7 @@ export class AiService {
     conversationId?: string,
     userId?: string,
     organizationId?: string,
+    signal?: AbortSignal,
   ): AsyncIterable<string> {
     const prompt = await this.buildPrompt(
       question,
@@ -50,9 +51,9 @@ export class AiService {
       organizationId,
     );
 
-    for await (
-      const chunk of this.llmProvider.generateStream(prompt)
-    ) {
+    for await (const chunk of this.llmProvider.generateStream(prompt, {
+      signal,
+    })) {
       yield chunk;
     }
   }
@@ -64,20 +65,26 @@ export class AiService {
     userId?: string,
     organizationId?: string,
   ): Promise<string> {
+    if (!organizationId || !userId)
+      throw new Error('User and organization context required');
+    await this.aiConversationService.authorizeRun(
+      userId,
+      organizationId,
+      workflowRunId,
+    );
     let conversationHistory = '';
 
     if (conversationId && userId) {
-      const messages =
-        await this.aiConversationService.getMessages(
-          conversationId,
-          userId,
-        );
+      const messages = await this.aiConversationService.getMessages(
+        conversationId,
+        userId,
+        organizationId,
+        workflowRunId,
+      );
 
       conversationHistory = messages
-        .map(
-          (message) =>
-            `${message.role}: ${message.content}`,
-        )
+        .filter((message) => message.state === 'COMPLETED')
+        .map((message) => `${message.role}: ${message.content}`)
         .join('\n');
     }
 
@@ -87,12 +94,12 @@ export class AiService {
       );
     }
 
-    const toolResult =
-      await this.workflowRunTool.getWorkflowRun(
-        workflowRunId,
-        organizationId,
-      );
+    const toolResult = await this.workflowRunTool.getWorkflowRun(
+      workflowRunId,
+      organizationId,
+    );
 
+    if (!toolResult.success) throw new Error('Workflow evidence unavailable');
     return `
 You are the EWAP Engineering Assistant.
 

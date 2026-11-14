@@ -1,12 +1,8 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
-import {
-  MicroserviceOptions,
-  Transport,
-} from '@nestjs/microservices';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 import { AppModule } from './app.module.js';
-import { Channel } from 'amqplib';
 
 async function bootstrap() {
   const app = await NestFactory.createMicroservice<MicroserviceOptions>(
@@ -20,17 +16,18 @@ async function bootstrap() {
         queueOptions: {
           durable: true,
 
-          deadLetterExchange:
-            'workflow.dlq.exchange',
+          deadLetterExchange: 'workflow.dlq.exchange',
 
-          deadLetterRoutingKey:
-            'workflow.dead',
+          deadLetterRoutingKey: 'workflow.dead',
         },
+        prefetchCount: 4,
+        isGlobalPrefetchCount: false,
         noAck: false, // Ensure messages are acknowledged after processing
       },
     },
   );
 
+  app.enableShutdownHooks();
   await app.listen();
 }
 

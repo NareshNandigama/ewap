@@ -1,3 +1,18 @@
+# EWAP worker
+
+Runtime configuration, canonical schema generation, fenced execution leases,
+confirmed retry/DLQ publication, status outbox delivery, and isolated tests are
+covered in [architecture hardening](../docs/architecture-hardening.md).
+
+The API owns migrations. After editing the canonical API schema, run
+`yarn --cwd worker prisma:generate` from the repository root. Worker build checks
+that its generated schema and TLS helper match the canonical files. Production
+DATABASE_URL connections verify TLS; configure DB_CA_CERT for private roots and
+remove connection-string SSL overrides.
+
+The generic NestJS tooling reference below is retained for development commands;
+it does not describe deployed EWAP infrastructure or authorize a deployment.
+
 <p align="center">
   <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
 </p>

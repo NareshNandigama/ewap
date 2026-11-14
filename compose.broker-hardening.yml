@@ -1,0 +1,19 @@
+name: ewap-broker-hardening
+services:
+  rabbitmq:
+    image: rabbitmq:4-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: hardening
+      RABBITMQ_DEFAULT_PASS: synthetic-hardening-password
+      RABBITMQ_DEFAULT_VHOST: ewap_hardening
+    ports:
+      - '127.0.0.1:15673:5672'
+    volumes:
+      - broker-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ['CMD', 'rabbitmq-diagnostics', '-q', 'ping']
+      interval: 3s
+      timeout: 5s
+      retries: 30
+volumes:
+  broker-data:

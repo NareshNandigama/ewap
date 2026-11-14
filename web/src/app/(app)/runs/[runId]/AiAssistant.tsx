@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+import { readAiStream } from '@/lib/ai-stream';
 import { API_BASE_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/auth/auth';
 
@@ -27,26 +28,21 @@ type ApiAiMessage = {
   role: 'USER' | 'ASSISTANT';
   content: string;
   createdAt: string;
+  state: 'STREAMING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
 };
 
-export default function AiAssistant({
-  runId,
-}: AiAssistantProps) {
+export default function AiAssistant({ runId }: AiAssistantProps) {
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiMode, setAiMode] = useState<AiMode>('standard');
   const [agentMessages, setAgentMessages] = useState<AiMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
-  const [isHistoryLoading, setIsHistoryLoading] =
-    useState(true);
+  const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
   const [messages, setMessages] = useState<AiMessage[]>([]);
 
-  const [conversationId, setConversationId] = useState<
-    string | null
-  >(null);
+  const [conversationId, setConversationId] = useState<string | null>(null);
 
-  const abortControllerRef =
-    useRef<AbortController | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -86,8 +82,7 @@ export default function AiAssistant({
          *
          * Unexpected end of JSON input
          */
-        const conversationText =
-          await conversationResponse.text();
+        const conversationText = await conversationResponse.text();
 
         if (cancelled) {
           return;
@@ -126,8 +121,7 @@ export default function AiAssistant({
           );
         }
 
-        const messagesText =
-          await messagesResponse.text();
+        const messagesText = await messagesResponse.text();
 
         if (cancelled) {
           return;
@@ -138,26 +132,22 @@ export default function AiAssistant({
           return;
         }
 
-        const data = JSON.parse(
-          messagesText,
-        ) as ApiAiMessage[];
+        const data = JSON.parse(messagesText) as ApiAiMessage[];
 
         setMessages(
           data.map((message) => ({
             id: message.id,
-            role:
-              message.role === 'USER'
-                ? 'user'
-                : 'assistant',
-            content: message.content,
+            role: message.role === 'USER' ? 'user' : 'assistant',
+            content:
+              message.content +
+              (message.state !== 'COMPLETED'
+                ? `\n[${message.state.toLowerCase()}]`
+                : ''),
           })),
         );
       } catch (error) {
         if (!cancelled) {
-          console.error(
-            'Failed to load AI conversation:',
-            error,
-          );
+          console.error('Failed to load AI conversation:', error);
 
           setConversationId(null);
           setMessages([]);
@@ -219,21 +209,18 @@ export default function AiAssistant({
       }
 
       if (aiMode === 'agent') {
-        const response = await fetch(
-          `${API_BASE_URL}/ai/agent/diagnose`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${accessToken}`,
-            },
-            body: JSON.stringify({
-              question,
-              workflowRunId: runId,
-            }),
-            signal: controller.signal,
+        const response = await fetch(`${API_BASE_URL}/ai/agent/diagnose`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
           },
-        );
+          body: JSON.stringify({
+            question,
+            workflowRunId: runId,
+          }),
+          signal: controller.signal,
+        });
 
         if (!response.ok) {
           throw new Error(`LangGraph request failed: ${response.status}`);
@@ -255,101 +242,59 @@ export default function AiAssistant({
         return;
       }
 
-      const response = await fetch(
-        `${API_BASE_URL}/ai/ask/stream`,
-        {
-          method: 'POST',
+      const response = await fetch(`${API_BASE_URL}/ai/ask/stream`, {
+        method: 'POST',
 
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${accessToken}`,
-          },
-
-          body: JSON.stringify({
-            question,
-            workflowRunId: runId,
-            ...(conversationId
-              ? {
-                  conversationId,
-                }
-              : {}),
-          }),
-
-          signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
         },
-      );
+
+        body: JSON.stringify({
+          question,
+          workflowRunId: runId,
+          ...(conversationId
+            ? {
+                conversationId,
+              }
+            : {}),
+        }),
+
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
-        throw new Error(
-          `AI request failed: ${response.status}`,
-        );
+        throw new Error(`AI request failed: ${response.status}`);
       }
 
-      const responseConversationId =
-        response.headers.get('X-Conversation-Id');
+      const responseConversationId = response.headers.get('X-Conversation-Id');
 
       if (responseConversationId) {
         setConversationId(responseConversationId);
       }
 
-      if (!response.body) {
-        throw new Error(
-          'Response body is not readable',
-        );
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-
-      let assistantAnswer = '';
-
-      while (true) {
-        const { value, done } = await reader.read();
-
-        if (done) {
-          break;
-        }
-
-        const chunk = decoder.decode(value, {
-          stream: true,
-        });
-
-        assistantAnswer += chunk;
-
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId
-              ? {
-                  ...message,
-                  content: assistantAnswer,
-                }
-              : message,
-          ),
-        );
-      }
-
-      const remainingChunk = decoder.decode();
-
-      if (remainingChunk) {
-        assistantAnswer += remainingChunk;
-
-        setMessages((current) =>
-          current.map((message) =>
-            message.id === assistantMessageId
-              ? {
-                  ...message,
-                  content: assistantAnswer,
-                }
-              : message,
-          ),
-        );
-      }
+      await readAiStream(
+        response,
+        (content) => {
+          setMessages((current) =>
+            current.map((message) =>
+              message.id === assistantMessageId
+                ? { ...message, content }
+                : message,
+            ),
+          );
+        },
+        setConversationId,
+      );
     } catch (error) {
-      if (
-        error instanceof DOMException &&
-        error.name === 'AbortError'
-      ) {
-        console.log('AI generation stopped');
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        updateMessages((current) =>
+          current.map((message) =>
+            message.id === assistantMessageId
+              ? { ...message, content: `${message.content}\n[Cancelled]` }
+              : message,
+          ),
+        );
         return;
       }
 
@@ -360,8 +305,7 @@ export default function AiAssistant({
           message.id === assistantMessageId
             ? {
                 ...message,
-                content:
-                  'Unable to get an AI response.',
+                content: 'Unable to get an AI response.',
               }
             : message,
         ),
@@ -381,10 +325,12 @@ export default function AiAssistant({
       <div className="mb-5 flex flex-wrap items-center gap-3">
         <span className="text-sm font-medium text-slate-700">AI mode</span>
         <div className="inline-flex rounded-lg border border-slate-200 bg-slate-50 p-1">
-          {([
-            ['standard', 'Standard AI'],
-            ['agent', 'LangGraph Agent'],
-          ] as const).map(([mode, label]) => (
+          {(
+            [
+              ['standard', 'Standard AI'],
+              ['agent', 'LangGraph Agent'],
+            ] as const
+          ).map(([mode, label]) => (
             <button
               key={mode}
               type="button"
@@ -404,7 +350,8 @@ export default function AiAssistant({
       </div>
       {aiMode === 'agent' && (
         <p className="mb-5 text-sm text-slate-500">
-          LangGraph test mode: responses are not streamed or saved to conversation history.
+          LangGraph test mode: responses are not streamed or saved to
+          conversation history.
         </p>
       )}
       <div className="mb-5">
@@ -433,9 +380,7 @@ export default function AiAssistant({
       </div>
 
       {aiMode === 'standard' && isHistoryLoading && (
-        <p className="mb-4 text-sm text-slate-500">
-          Loading conversation...
-        </p>
+        <p className="mb-4 text-sm text-slate-500">Loading conversation...</p>
       )}
 
       {visibleMessages.length > 0 && (
@@ -469,14 +414,9 @@ export default function AiAssistant({
         <input
           type="text"
           value={aiQuestion}
-          onChange={(event) =>
-            setAiQuestion(event.target.value)
-          }
+          onChange={(event) => setAiQuestion(event.target.value)}
           onKeyDown={(event) => {
-            if (
-              event.key === 'Enter' &&
-              !isAiLoading
-            ) {
+            if (event.key === 'Enter' && !isAiLoading) {
               askAi();
             }
           }}
@@ -487,13 +427,8 @@ export default function AiAssistant({
 
         <button
           type="button"
-          onClick={
-            isAiLoading ? stopAi : askAi
-          }
-          disabled={
-            !isAiLoading &&
-            !aiQuestion.trim()
-          }
+          onClick={isAiLoading ? stopAi : askAi}
+          disabled={!isAiLoading && !aiQuestion.trim()}
           className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isAiLoading ? 'Stop' : 'Send'}

@@ -10,16 +10,9 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import StatusBadge, {
-  type WorkflowRunStatus,
-} from '@/components/StatusBadge';
+import StatusBadge, { type WorkflowRunStatus } from '@/components/StatusBadge';
 import { useWorkflowUpdates } from '@/hooks/useWorkflowUpdates';
 import { apiRequest } from '@/lib/api/client';
 
@@ -49,8 +42,7 @@ export default function RunsPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] =
-    useState<StatusFilter>('ALL');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
 
   const [sorting, setSorting] = useState<SortingState>([
     {
@@ -65,8 +57,7 @@ export default function RunsPage() {
         setLoading(true);
         setError(null);
 
-        const data =
-          await apiRequest<WorkflowRun[]>('/workflow-runs');
+        const data = await apiRequest<WorkflowRun[]>('/workflow-runs');
 
         setRuns(data);
       } catch (error) {
@@ -84,10 +75,7 @@ export default function RunsPage() {
   }, []);
 
   const handleStatusChange = useCallback(
-    (data: {
-      runId: string;
-      status: WorkflowRunStatus;
-    }) => {
+    (data: { runId: string; status: WorkflowRunStatus }) => {
       setRuns((current) =>
         current.map((run) =>
           run.id === data.runId
@@ -102,38 +90,37 @@ export default function RunsPage() {
     [],
   );
 
+  const handleResync = useCallback(() => {
+    void apiRequest<WorkflowRun[]>('/workflow-runs')
+      .then(setRuns)
+      .catch(() => {
+        setError('Unable to refresh workflow state');
+      });
+  }, []);
+
   useWorkflowUpdates({
     onStatusChange: handleStatusChange,
+    onResync: handleResync,
   });
 
-  const normalizedSearchQuery =
-    searchQuery.trim().toLowerCase();
+  const normalizedSearchQuery = searchQuery.trim().toLowerCase();
 
   const filteredRuns = useMemo(() => {
     return runs.filter((run) => {
       const matchesSearch =
         !normalizedSearchQuery ||
-        run.workflow.name
-          .toLowerCase()
-          .includes(normalizedSearchQuery) ||
+        run.workflow.name.toLowerCase().includes(normalizedSearchQuery) ||
         run.workflow.project.name
           .toLowerCase()
           .includes(normalizedSearchQuery) ||
-        run.id
-          .toLowerCase()
-          .includes(normalizedSearchQuery);
+        run.id.toLowerCase().includes(normalizedSearchQuery);
 
       const matchesStatus =
-        statusFilter === 'ALL' ||
-        run.status === statusFilter;
+        statusFilter === 'ALL' || run.status === statusFilter;
 
       return matchesSearch && matchesStatus;
     });
-  }, [
-    runs,
-    normalizedSearchQuery,
-    statusFilter,
-  ]);
+  }, [runs, normalizedSearchQuery, statusFilter]);
 
   const columns = useMemo<ColumnDef<WorkflowRun>[]>(
     () => [
@@ -165,14 +152,11 @@ export default function RunsPage() {
       },
       {
         id: 'started',
-        accessorFn: (run) =>
-          new Date(run.createdAt).getTime(),
+        accessorFn: (run) => new Date(run.createdAt).getTime(),
         header: 'Started',
         cell: ({ row }) => (
           <p className="text-sm text-slate-600">
-            {new Date(
-              row.original.createdAt,
-            ).toLocaleString()}
+            {new Date(row.original.createdAt).toLocaleString()}
           </p>
         ),
       },
@@ -180,9 +164,7 @@ export default function RunsPage() {
         id: 'status',
         accessorKey: 'status',
         header: 'Status',
-        cell: ({ row }) => (
-          <StatusBadge status={row.original.status} />
-        ),
+        cell: ({ row }) => <StatusBadge status={row.original.status} />,
       },
     ],
     [],
@@ -206,8 +188,7 @@ export default function RunsPage() {
   });
 
   const hasActiveFilters =
-    normalizedSearchQuery.length > 0 ||
-    statusFilter !== 'ALL';
+    normalizedSearchQuery.length > 0 || statusFilter !== 'ALL';
 
   function clearFilters() {
     setSearchQuery('');
@@ -227,8 +208,7 @@ export default function RunsPage() {
         </h1>
 
         <p className="mt-2 text-sm text-slate-600">
-          Monitor workflow executions across all of your
-          projects.
+          Monitor workflow executions across all of your projects.
         </p>
       </div>
 
@@ -240,9 +220,7 @@ export default function RunsPage() {
 
       {loading && (
         <div className="rounded-xl border border-slate-200 bg-white p-8 shadow-sm">
-          <p className="text-sm text-slate-600">
-            Loading workflow runs...
-          </p>
+          <p className="text-sm text-slate-600">Loading workflow runs...</p>
         </div>
       )}
 
@@ -253,8 +231,7 @@ export default function RunsPage() {
           </h2>
 
           <p className="mt-2 text-sm text-slate-600">
-            Run a workflow and its execution history will
-            appear here.
+            Run a workflow and its execution history will appear here.
           </p>
 
           <Link
@@ -271,10 +248,7 @@ export default function RunsPage() {
           <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
             <div className="flex flex-col gap-3 sm:flex-row">
               <div className="flex-1">
-                <label
-                  htmlFor="run-search"
-                  className="sr-only"
-                >
+                <label htmlFor="run-search" className="sr-only">
                   Search workflow runs
                 </label>
 
@@ -292,10 +266,7 @@ export default function RunsPage() {
               </div>
 
               <div className="sm:w-48">
-                <label
-                  htmlFor="status-filter"
-                  className="sr-only"
-                >
+                <label htmlFor="status-filter" className="sr-only">
                   Filter by status
                 </label>
 
@@ -303,45 +274,30 @@ export default function RunsPage() {
                   id="status-filter"
                   value={statusFilter}
                   onChange={(event) => {
-                    setStatusFilter(
-                      event.target.value as StatusFilter,
-                    );
+                    setStatusFilter(event.target.value as StatusFilter);
 
                     table.setPageIndex(0);
                   }}
                   className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                 >
-                  <option value="ALL">
-                    All statuses
-                  </option>
+                  <option value="ALL">All statuses</option>
 
-                  <option value="PENDING">
-                    Pending
-                  </option>
+                  <option value="PENDING">Pending</option>
 
-                  <option value="RUNNING">
-                    Running
-                  </option>
+                  <option value="RUNNING">Running</option>
 
-                  <option value="SUCCESS">
-                    Success
-                  </option>
+                  <option value="SUCCESS">Success</option>
 
-                  <option value="FAILED">
-                    Failed
-                  </option>
+                  <option value="FAILED">Failed</option>
 
-                  <option value="CANCELLED">
-                    Cancelled
-                  </option>
+                  <option value="CANCELLED">Cancelled</option>
                 </select>
               </div>
             </div>
 
             <div className="mt-3 flex items-center justify-between gap-4">
               <p className="text-xs text-slate-500">
-                Showing {filteredRuns.length} of{' '}
-                {runs.length} runs
+                Showing {filteredRuns.length} of {runs.length} runs
               </p>
 
               {hasActiveFilters && (
@@ -382,89 +338,67 @@ export default function RunsPage() {
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="border-b border-slate-200 bg-slate-50">
-                      {table
-                        .getHeaderGroups()
-                        .map((headerGroup) => (
-                          <tr key={headerGroup.id}>
-                            {headerGroup.headers.map(
-                              (header) => {
-                                const canSort =
-                                  header.column.getCanSort();
+                      {table.getHeaderGroups().map((headerGroup) => (
+                        <tr key={headerGroup.id}>
+                          {headerGroup.headers.map((header) => {
+                            const canSort = header.column.getCanSort();
 
-                                const sorted =
-                                  header.column.getIsSorted();
+                            const sorted = header.column.getIsSorted();
 
-                                return (
-                                  <th
-                                    key={header.id}
-                                    className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                            return (
+                              <th
+                                key={header.id}
+                                className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-slate-500"
+                              >
+                                {header.isPlaceholder ? null : (
+                                  <button
+                                    type="button"
+                                    disabled={!canSort}
+                                    onClick={header.column.getToggleSortingHandler()}
+                                    className={
+                                      canSort
+                                        ? 'inline-flex items-center gap-1 transition hover:text-slate-900'
+                                        : ''
+                                    }
                                   >
-                                    {header.isPlaceholder ? null : (
-                                      <button
-                                        type="button"
-                                        disabled={!canSort}
-                                        onClick={header.column.getToggleSortingHandler()}
-                                        className={
-                                          canSort
-                                            ? 'inline-flex items-center gap-1 transition hover:text-slate-900'
-                                            : ''
-                                        }
-                                      >
-                                        {flexRender(
-                                          header.column
-                                            .columnDef
-                                            .header,
-                                          header.getContext(),
-                                        )}
-
-                                        {sorted ===
-                                          'asc' && (
-                                          <span>↑</span>
-                                        )}
-
-                                        {sorted ===
-                                          'desc' && (
-                                          <span>↓</span>
-                                        )}
-                                      </button>
+                                    {flexRender(
+                                      header.column.columnDef.header,
+                                      header.getContext(),
                                     )}
-                                  </th>
-                                );
-                              },
-                            )}
-                          </tr>
-                        ))}
+
+                                    {sorted === 'asc' && <span>↑</span>}
+
+                                    {sorted === 'desc' && <span>↓</span>}
+                                  </button>
+                                )}
+                              </th>
+                            );
+                          })}
+                        </tr>
+                      ))}
                     </thead>
 
                     <tbody className="divide-y divide-slate-200">
-                      {table
-                        .getRowModel()
-                        .rows.map((row) => (
-                          <tr
-                            key={row.id}
-                            className="transition hover:bg-slate-50"
-                          >
-                            {row
-                              .getVisibleCells()
-                              .map((cell) => (
-                                <td
-                                  key={cell.id}
-                                  className="px-6 py-5"
-                                >
-                                  <Link
-                                    href={`/runs/${row.original.id}`}
-                                    className="block"
-                                  >
-                                    {flexRender(
-                                      cell.column
-                                        .columnDef.cell,
-                                      cell.getContext(),
-                                    )}
-                                  </Link>
-                                </td>
-                              ))}
-                          </tr>
-                        ))}
+                      {table.getRowModel().rows.map((row) => (
+                        <tr
+                          key={row.id}
+                          className="transition hover:bg-slate-50"
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <td key={cell.id} className="px-6 py-5">
+                              <Link
+                                href={`/runs/${row.original.id}`}
+                                className="block"
+                              >
+                                {flexRender(
+                                  cell.column.columnDef.cell,
+                                  cell.getContext(),
+                                )}
+                              </Link>
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
@@ -474,8 +408,7 @@ export default function RunsPage() {
                 <p className="text-sm text-slate-500">
                   Page{' '}
                   <span className="font-semibold text-slate-700">
-                    {table.getState().pagination
-                      .pageIndex + 1}
+                    {table.getState().pagination.pageIndex + 1}
                   </span>{' '}
                   of{' '}
                   <span className="font-semibold text-slate-700">
@@ -486,12 +419,8 @@ export default function RunsPage() {
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    onClick={() =>
-                      table.previousPage()
-                    }
-                    disabled={
-                      !table.getCanPreviousPage()
-                    }
+                    onClick={() => table.previousPage()}
+                    disabled={!table.getCanPreviousPage()}
                     className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                   >
                     Previous
