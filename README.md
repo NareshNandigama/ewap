@@ -327,6 +327,10 @@ credentials should be supplied through environment variables.
 
 ## Current Scope
 
+Tenant-scoped PostgreSQL analytics endpoints and their isolated database tests
+are documented in [docs/analytics.md](docs/analytics.md), with reproducible
+EXPLAIN ANALYZE measurements and an additive index migration.
+
 EWAP currently focuses on:
 
 - Projects

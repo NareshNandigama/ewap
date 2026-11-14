@@ -1,0 +1,196 @@
+{
+  "generatedAt": "2026-11-13T15:18:39.921Z",
+  "postgres": "PostgreSQL 16.16 (Debian 16.16-1.pgdg12+1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+  "dataset": {
+    "totalDatabaseWorkflowRuns": 200030,
+    "totalDatabaseIntegrationEvents": 200026,
+    "newWorkflowRuns": 100000,
+    "newIntegrationEvents": 100000,
+    "newWorkflows": 200,
+    "selectedTenantWorkflowCount": 1,
+    "selectedTenantRunCount": 500
+  },
+  "method": "Three samples per query; median shown. Baseline temporarily omits only the three new indexes in a rolled-back transaction. Cached local synthetic data; not a production SLA.",
+  "before": {
+    "rates": {
+      "medianExecutionMs": 36.547,
+      "executionSamplesMs": [
+        64.438,
+        36.537,
+        36.547
+      ],
+      "sharedHitBlocks": 4040,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "Workflow_pkey"
+      ],
+      "nodes": [
+        "Aggregate",
+        "Index Scan",
+        "Limit",
+        "Materialize",
+        "Nested Loop",
+        "Seq Scan"
+      ]
+    },
+    "topFailing": {
+      "medianExecutionMs": 39.711,
+      "executionSamplesMs": [
+        38.229,
+        39.711,
+        39.742
+      ],
+      "sharedHitBlocks": 3960,
+      "sharedReadBlocks": 0,
+      "indexes": [],
+      "nodes": [
+        "Aggregate",
+        "Hash",
+        "Hash Join",
+        "Limit",
+        "Nested Loop",
+        "Seq Scan",
+        "Sort"
+      ]
+    },
+    "latestRuns": {
+      "medianExecutionMs": 39.771,
+      "executionSamplesMs": [
+        40.139,
+        39.266,
+        39.771
+      ],
+      "sharedHitBlocks": 4040,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "Workflow_pkey"
+      ],
+      "nodes": [
+        "Index Scan",
+        "Limit",
+        "Materialize",
+        "Nested Loop",
+        "Seq Scan",
+        "Sort",
+        "Subquery Scan",
+        "WindowAgg"
+      ]
+    },
+    "integrationErrors": {
+      "medianExecutionMs": 1.23,
+      "executionSamplesMs": [
+        1.191,
+        1.23,
+        1.401
+      ],
+      "sharedHitBlocks": 503,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "IntegrationEvent_organizationId_correlationId_idx"
+      ],
+      "nodes": [
+        "Aggregate",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "CTE Scan",
+        "Hash",
+        "Hash Join",
+        "Limit",
+        "Sort"
+      ]
+    }
+  },
+  "after": {
+    "rates": {
+      "medianExecutionMs": 1.2,
+      "executionSamplesMs": [
+        1.288,
+        0.928,
+        1.2
+      ],
+      "sharedHitBlocks": 606,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "WorkflowRun_workflowId_createdAt_id_idx",
+        "Workflow_pkey"
+      ],
+      "nodes": [
+        "Aggregate",
+        "Index Scan",
+        "Limit",
+        "Materialize",
+        "Nested Loop",
+        "Seq Scan"
+      ]
+    },
+    "topFailing": {
+      "medianExecutionMs": 1.045,
+      "executionSamplesMs": [
+        1.058,
+        0.816,
+        1.045
+      ],
+      "sharedHitBlocks": 526,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "WorkflowRun_workflowId_createdAt_id_idx"
+      ],
+      "nodes": [
+        "Aggregate",
+        "Hash",
+        "Hash Join",
+        "Index Scan",
+        "Limit",
+        "Nested Loop",
+        "Seq Scan",
+        "Sort"
+      ]
+    },
+    "latestRuns": {
+      "medianExecutionMs": 1.032,
+      "executionSamplesMs": [
+        1.078,
+        0.959,
+        1.032
+      ],
+      "sharedHitBlocks": 606,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "WorkflowRun_workflowId_createdAt_id_idx",
+        "Workflow_pkey"
+      ],
+      "nodes": [
+        "Index Scan",
+        "Limit",
+        "Materialize",
+        "Nested Loop",
+        "Seq Scan",
+        "Subquery Scan",
+        "WindowAgg"
+      ]
+    },
+    "integrationErrors": {
+      "medianExecutionMs": 1.685,
+      "executionSamplesMs": [
+        2.08,
+        1.685,
+        1.17
+      ],
+      "sharedHitBlocks": 503,
+      "sharedReadBlocks": 0,
+      "indexes": [
+        "IntegrationEvent_organizationId_correlationId_idx"
+      ],
+      "nodes": [
+        "Aggregate",
+        "Bitmap Heap Scan",
+        "Bitmap Index Scan",
+        "CTE Scan",
+        "Hash",
+        "Hash Join",
+        "Limit",
+        "Sort"
+      ]
+    }
+  }
+}
