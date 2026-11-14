@@ -1,0 +1,46 @@
+# Synthetic startup fixture only; no host ports or application database access.
+name: ewap-api-startup
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: startup_test
+      POSTGRES_USER: startup_test
+      POSTGRES_PASSWORD: synthetic-startup-password
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        openssl req -x509 -newkey rsa:2048 -nodes -keyout /tmp/server.key -out /tmp/server.crt -days 1 -subj /CN=postgres
+        chown postgres:postgres /tmp/server.key /tmp/server.crt
+        chmod 600 /tmp/server.key
+        exec docker-entrypoint.sh postgres -c ssl=on -c ssl_cert_file=/tmp/server.crt -c ssl_key_file=/tmp/server.key
+    volumes:
+      - startup-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U startup_test -d startup_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  api:
+    build: ./api
+    image: ewap-api:h3-local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_NAME: startup_test
+      DB_USER: startup_test
+      DB_PASSWORD: synthetic-startup-password
+      JWT_SECRET: synthetic-startup-jwt-secret
+      GEMINI_API_KEY: synthetic-no-model-calls
+      FRONTEND_URL: http://localhost:3000
+      ENABLE_MESSAGING: "false"
+    healthcheck:
+      test: ["CMD", "node", "--input-type=module", "-e", "const r = await fetch('http://127.0.0.1:3000/api/v1/health'); if (!r.ok || (await r.json()).status !== 'ok') process.exit(1)"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  startup-data:

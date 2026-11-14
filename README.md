@@ -332,7 +332,8 @@ Environment-specific configuration such as database credentials, JWT
 configuration, messaging configuration, frontend URL, and AI provider
 credentials should be supplied through environment variables.
 
-[Exact local setup commands should match the repository configuration.]
+API environment requirements and the isolated Docker startup check are documented
+in [API configuration](docs/api-configuration.md).
 
 
 ## Current Scope

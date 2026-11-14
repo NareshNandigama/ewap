@@ -23,7 +23,7 @@ feature task, following the approved review. Work remains one item at a time.
 | --- | --- | --- |
 | P0 / H1 | Atomic organization/owner registration; protect tenant membership and user/organization reads | Complete locally; verified, not deployed |
 | P1 / H2 | Authenticate worker status ingress and isolate WebSocket events by tenant | Complete locally; verified, not deployed |
-| P1 / H3 | Fix environment-only API container startup and configuration validation | Pending |
+| P1 / H3 | Fix environment-only API container startup and configuration validation | Complete locally; verified, not deployed |
 | P1 / H4 | Atomic run dispatch/outbox, recoverable execution claims, independent status-event delivery | Pending |
 | P1 / H5 | Confirm retry/DLQ publication before ACK; reconnect and apply backpressure | Pending |
 | P2 / H6 | Bind chat conversations and writes to the authorized user/tenant/run | Pending |
@@ -321,6 +321,30 @@ container/network is stopped afterward without deleting the named volume. No
 application database, production deployment, or paid infrastructure was modified.
 Single-process socket delivery and cache fill/recovery races remain documented
 limits. Next priority: H3, environment-only API startup/configuration validation.
+
+## H3 implementation and verification
+
+Implemented November 14, 2026. API startup now loads a local `.env` optionally,
+ignores only ENOENT, preserves injected values, and imports application modules
+after loading. Nest validates the resulting environment once. Production uses
+required DB_HOST/DB_NAME/DB_USER/DB_PASSWORD and optional defaulted DB_PORT;
+development requires DATABASE_URL. JWT_SECRET and FRONTEND_URL are required;
+ports and enabled messaging dependencies are validated before service creation.
+
+[API configuration](api-configuration.md) documents the request-independent
+startup flow, environment contract, Node versions, and repeatable checks.
+The production TLS policy remains unchanged and is tracked by H9. No schema,
+migration, application database, deployment, or real model call is involved.
+
+Validation: 21 targeted tests across configuration, Prisma, and Redis passed;
+Node 24 API build and lint passed. The actual Node 22 Alpine Docker image built
+and became healthy in production mode against an isolated TLS-enabled PostgreSQL
+fixture using only injected DB fields, with no `.env` or DATABASE_URL. The HTTP
+health assertion passed. Containers/network were stopped and removed; the named
+synthetic database volume was retained. Existing package engine/peer warnings
+appeared during Docker dependency installation but did not prevent build/startup.
+Next priority: H4, atomic run dispatch and recoverable execution claims.
+The full API suite was not rerun; existing scaffold failures are not claimed fixed.
 
 ## Engineering acceptance criteria
 

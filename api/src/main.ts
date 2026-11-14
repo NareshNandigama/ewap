@@ -2,7 +2,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 
-process.loadEnvFile();
+import { loadLocalEnvironment } from './config/local-environment.js';
+
+loadLocalEnvironment();
 
 const { AppModule } = await import('./app.module.js');
 
@@ -23,7 +25,7 @@ async function bootstrap() {
     }),
   );
 
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(configService.getOrThrow<number>('PORT'));
 }
 
 await bootstrap();

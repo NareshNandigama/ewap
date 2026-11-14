@@ -10,7 +10,7 @@ Remediation update: H1 membership and H2 status-channel hardening have been
 implemented and verified locally after this review; neither has been deployed.
 See [membership authorization](membership-authorization.md) and
 [workflow status security](workflow-status-security.md). Original findings below
-document the reviewed baseline; H3–H9 remain pending in the roadmap queue.
+document the reviewed baseline; H4–H9 remain pending in the roadmap queue.
 
 ## Current service boundaries
 
@@ -140,6 +140,11 @@ Verification to add: disconnect between publish and confirmation, missing routin
 publish backpressure, publisher reconnect, and retry/DLQ handoff failures.
 
 ### P1 — API image startup requires a file the image excludes
+
+H3 follow-up: fixed and locally verified November 14, 2026. The production API
+image starts with injected DB fields and no `.env`/DATABASE_URL; see
+[configuration](api-configuration.md) and the [roadmap](engineering-roadmap.md).
+The following describes the reviewed baseline.
 
 [`main.ts`](../api/src/main.ts#L5) calls `process.loadEnvFile()` unconditionally
 before importing AppModule. The Docker context excludes `.env`, and the runtime

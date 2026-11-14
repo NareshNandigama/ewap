@@ -25,7 +25,8 @@
     "test:analytics:db": "node scripts/analytics-local.mjs test",
     "test:membership:db": "node scripts/analytics-local.mjs membership",
     "test:workflow-status:db": "node scripts/analytics-local.mjs status",
-    "analytics:explain": "node scripts/analytics-local.mjs explain"
+    "analytics:explain": "node scripts/analytics-local.mjs explain",
+    "test:startup:image": "node scripts/startup-image.mjs"
   },
   "dependencies": {
     "@google/genai": "^2.21.0",
