@@ -16,13 +16,32 @@ it after each phase; do not infer completion from a feature name alone.
 
 ## Execution order
 
+The architecture hardening queue below takes priority over the next pending
+feature task, following the approved review. Work remains one item at a time.
+
+| Priority | Item | Status |
+| --- | --- | --- |
+| P0 / H1 | Atomic organization/owner registration; protect tenant membership and user/organization reads | Complete locally; verified, not deployed |
+| P1 / H2 | Authenticate worker status ingress and isolate WebSocket events by tenant | Pending |
+| P1 / H3 | Fix environment-only API container startup and configuration validation | Pending |
+| P1 / H4 | Atomic run dispatch/outbox, recoverable execution claims, independent status-event delivery | Pending |
+| P1 / H5 | Confirm retry/DLQ publication before ACK; reconnect and apply backpressure | Pending |
+| P2 / H6 | Bind chat conversations and writes to the authorized user/tenant/run | Pending |
+| P2 / H7 | Model streaming terminal states, propagate cancellation, and bound provider work | Pending |
+| P2 / H8 | Improve cache invalidation and diagnostic evidence/version freshness | Pending |
+| P2 / H9 | Consolidate schema ownership, validate database TLS, and define readiness checks | Pending |
+
+After P0/P1 access and execution fixes, resume Task 3 rate limiting alongside
+the remaining P2 work according to product impact. Task IDs 1–8 below retain
+their original meaning; completed feature work is not being relabeled.
+
 | Task | Status | Scope / completion evidence |
 | --- | --- | --- |
 | 1.1 FastAPI foundation | Complete | Independent `ai-service/`, health, validated evidence contract, deterministic rules; 34 Python tests and package build pass |
 | 1.2 Secure NestJS integration | Complete | Service authentication, authorized evidence mapping, deadline, validation, TypeScript fallback; 45 Python and 60 targeted API tests pass |
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
-| 3 Redis rate limiting | Pending | Login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
+| 3 Redis rate limiting | Pending | Registration/login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
 | 4 Python LangGraph / LLM diagnostics | Pending | Actual model calls, grounded structured findings, retries, timeout/cancellation, evaluation fixtures |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
@@ -202,7 +221,87 @@ named volume preserved. No cloud deployment or paid infrastructure was created.
 This task intentionally leaves the frontend unchanged. Next: Task 3, Redis-backed
 login/AI rate limiting, tenant-aware quotas, 429/Retry-After, and failure/concurrency tests.
 
+## H1 membership authorization verification
+
+Implemented November 13, 2026, following approval to prioritize the architecture
+findings. Public registration now atomically creates a new organization and its
+first ADMIN. Existing-tenant membership creation and directory access require a
+current same-tenant ADMIN; new managed accounts are always MEMBER. Members can
+read their own profile and organization. Public organization/user enumeration and
+the orphan-organization creation route have been removed.
+
+JWT identity claims are validated before tenant lookups. Privileged user operations
+revalidate the current role in PostgreSQL, including inside a serializable write
+transaction. Public demo access cannot issue ADMIN credentials. New passwords
+are bounded by bcrypt's UTF-8 byte limit. Existing users, organizations, and
+password hashes are unchanged; there are no schema/migration changes.
+
+Changed files cover Auth/User/Organization controllers, services, DTOs/module
+wiring, JWT guard, public-user projection, password helper, unit tests, and a
+real PostgreSQL HTTP/concurrency test plus guarded runner command/config. The
+[API contract and rollout notes](membership-authorization.md) describe the removed
+legacy bootstrap flow and current permissions.
+
+Validation: 109 targeted unit/regression tests passed across 16 files, 19 real
+PostgreSQL membership HTTP tests passed (including concurrent duplicate signup),
+and the existing 15 analytics PostgreSQL/HTTP tests passed with the stricter JWT
+guard. API lint and the Node 24 build passed. No production deployment or schema
+migration was performed. The full API suite was not rerun; remaining unrelated
+legacy scaffold failures are not claimed resolved. The touched Auth/User/Organization
+and JWT scaffolds were replaced with meaningful tests.
+
+Only synthetic fixtures are added to the existing isolated test database; no application data is
+modified or reset. Its test container/network was stopped with the named volume
+preserved. Email invitations, verification, session revocation, and
+password-reset flows remain separate work. Public registration rate protection
+joins the planned Task 3 scope. Next implementation item: H2, authenticated worker
+status callbacks and tenant-scoped WebSocket delivery.
+
+## Engineering acceptance criteria
+
+Apply these criteria within the existing task order. Planned evaluations and
+experiments remain pending until implemented and verified.
+
+- For each implemented phase, document the request flow, trust boundaries,
+  architectural trade-offs, reproducible checks, and remaining limitations.
+- Task 3: connect rate/concurrency controls to resource exhaustion and provider
+  cost protection. A request quota alone is not a spending cap or concurrency limit.
+- Task 4: separate observed facts, hypotheses, and insufficient evidence. Validate
+  structured outputs and allowed evidence references; citation membership alone
+  does not prove that a claim is supported. Version prompts/model configurations.
+- Evaluation: plan a 30-case development baseline (8 answerable, 5 absent
+  answers, 5 paraphrase/exact-ID, 4 stale/conflicting, 4 cross-tenant, 4 injection/tool
+  misuse), with a separate held-out set and a human-reviewed scoring rubric. These
+  cases are proposed, not implemented, and are not proof of production reliability.
+- If retrieval is added or extended, first inspect its actual implementation.
+  Preserve source/version/access provenance and document lifecycle; compare exact,
+  vector, and hybrid retrieval only where useful. Keep live run state in authorized
+  database/API reads. Retrieval quality and grounded-answer quality are separate
+  measurements. Scope retrieval experiments separately before implementation.
+- Streaming/provider work: distinguish provisional output from validated final
+  answers; design completed/failed/cancelled persistence and cancellation propagation.
+  Do not claim provider work or billing stopped solely because a client disconnected.
+- Operations: measure stage latency, p50/p95, tokens, retries, failures/cancellations,
+  and cost per successful request with explicit denominators. Record only measured
+  values; retain reproducible synthetic failure traces and known limitations.
+- Tools/MCP/agents: prefer narrow read-only tools and a bounded code-defined flow.
+  Model-proposed actions still need server authorization. MCP, multi-agent work,
+  fine-tuning, and additional frameworks require a demonstrated need and measured
+  benefit before adoption.
+
+The current Python service is deterministic; its unit tests are not LLM quality
+evaluations. PostgreSQL EXPLAIN measurements are database experiments, not AI
+quality or end-to-end production latency measurements. The hardening queue now
+determines the immediate next implementation item.
+
 ## Working rules
+
+The [architecture review](architecture-review.md) records pending access-control,
+workflow delivery/state, container startup, chat, streaming, and cache findings.
+Completed feature tasks do not imply these broader architecture gaps are fixed.
+The approved priority is to address membership and status-channel trust boundaries
+before expanding functionality. The review itself made no application fixes;
+hardening implementation and verification are tracked separately in the queue.
 
 Implement one phase at a time. Preserve tenant isolation and existing changes.
 Never delete database data or rewrite historical Prisma migrations. Explain

@@ -1,21 +1,33 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CreateOrganizationDto } from './dto/create-organization.dto.js';
 
 @Injectable()
 export class OrganizationService {
-    constructor(private readonly prisma: PrismaService) {}
-    async findAll() {
-        return this.prisma.organization.findMany();
+  constructor(private readonly prisma: PrismaService) {}
+
+  private requireScope(organizationId: string) {
+    if (typeof organizationId !== 'string' || !organizationId.trim()) {
+      throw new ForbiddenException('Organization context required');
     }
-    findOne(id: string) {
-        return this.prisma.organization.findUnique({
-            where: { id },
-        });
-    }
-    create(createOrganizationDto: CreateOrganizationDto) {
-        return this.prisma.organization.create({
-            data: createOrganizationDto,
-        });
-    }
+  }
+
+  findAll(organizationId: string) {
+    this.requireScope(organizationId);
+    return this.prisma.organization.findMany({ where: { id: organizationId } });
+  }
+
+  async findOne(id: string, organizationId: string) {
+    this.requireScope(organizationId);
+    if (id !== organizationId)
+      throw new NotFoundException('Organization not found');
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
+    if (!organization) throw new NotFoundException('Organization not found');
+    return organization;
+  }
 }
