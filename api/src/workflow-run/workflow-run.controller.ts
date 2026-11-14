@@ -68,11 +68,13 @@ export class WorkflowRunController {
 
   @Post('workflow-runs/status')
   @Public()
-  updateStatus(@Body() dto: WorkflowStatusDto) {
+  async updateStatus(@Body() dto: WorkflowStatusDto) {
     this.workflowGateway.broadcastWorkflowStatus(
       dto.runId,
       dto.status,
     );
+
+    await this.workflowRunService.invalidateRunCaches(dto.runId);
 
     return {
       success: true,
