@@ -151,30 +151,60 @@ model IntegrationEvent {
 }
 
 model KnowledgeDocument {
-  id             String   @id @default(uuid())
-  organizationId String
-  title          String
-  source         String?
-  content        String   @db.Text
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String    @id @default(uuid())
+  organizationId  String
+  deletedAt       DateTime?
+  sourceKey       String?
+  version         Int       @default(1)
+  contentHash     String
+  chunkingVersion String    @default("unicode-1000-150-v1")
+  accessScope     String    @default("ORGANIZATION")
+  createdBy       String?
+  updatedBy       String?
+  title           String
+  source          String?
+  content         String    @db.Text
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   chunks       KnowledgeChunk[]
+  revisions    KnowledgeDocumentRevision[]
 
+  @@unique([organizationId, sourceKey])
+  @@unique([id, organizationId])
   @@index([organizationId, createdAt])
 }
 
-model KnowledgeChunk {
-  id             String                      @id @default(uuid())
-  documentId     String
-  chunkIndex     Int
-  content        String                      @db.Text
-  createdAt      DateTime                    @default(now())
-  organizationId String
-  embedding      Unsupported("vector(768)")?
+model KnowledgeDocumentRevision {
+  id              String            @id @default(uuid())
+  documentId      String
+  organizationId  String
+  version         Int
+  title           String
+  source          String?
+  content         String            @db.Text
+  contentHash     String
+  chunkingVersion String
+  createdBy       String?
+  createdAt       DateTime          @default(now())
+  document        KnowledgeDocument @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade)
 
-  document KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  @@unique([documentId, version])
+}
+
+model KnowledgeChunk {
+  id              String                      @id @default(uuid())
+  documentId      String
+  chunkIndex      Int
+  documentVersion Int                         @default(1)
+  contentHash     String
+  content         String                      @db.Text
+  createdAt       DateTime                    @default(now())
+  organizationId  String
+  embedding       Unsupported("vector(768)")?
+
+  document KnowledgeDocument @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade)
 
   @@unique([documentId, chunkIndex])
   @@index([documentId])
@@ -212,15 +242,15 @@ enum WorkflowRunStatus {
 
 // Durable dispatch/status hints. Delivery is at least once, keyed for deduplication.
 model WorkflowOutbox {
-  id          String   @id @default(uuid())
-  key         String   @unique
+  id          String    @id @default(uuid())
+  key         String    @unique
   kind        String
   runId       String
   workflowId  String
   status      String?
-  retryCount  Int      @default(0)
-  createdAt   DateTime @default(now())
-  availableAt DateTime @default(now())
+  retryCount  Int       @default(0)
+  createdAt   DateTime  @default(now())
+  availableAt DateTime  @default(now())
   deliveredAt DateTime?
   leaseToken  String?
   leasedUntil DateTime?

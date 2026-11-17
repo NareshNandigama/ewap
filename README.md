@@ -28,6 +28,7 @@ analyze execution status and failures.
 - Transactional workflow dispatch outbox, recoverable worker leases, and confirmed RabbitMQ retry/DLQ handoff
 - Optional Redis diagnostic caching keyed by evidence and model/prompt versions
 - SSE AI responses with persisted completion, failure, and cancellation states
+- Tenant-owned runbook ingestion with revision history and atomic chunk replacement
 - Workflow-run-aware AI diagnostics
 - AI conversation persistence
 - Dockerized backend
@@ -318,6 +319,8 @@ in [ai-service/README.md](ai-service/README.md). It provides rule-based reports
 with optional authenticated NestJS integration and TypeScript fallback. Python
 defaults to deterministic analysis and now supports opt-in LangGraph/OpenAI
 structured hypotheses; see the service README for limits and configuration.
+Tenant-scoped runbook ingestion is documented in
+[runbook ingestion](docs/runbook-ingestion.md); retrieval is the next phase.
 Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 An isolated Python Docker setup and live NestJS-to-Python verification command

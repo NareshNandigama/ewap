@@ -6,6 +6,6 @@ import { RateLimitGuard } from './rate-limit.guard.js';
 @Module({
   imports: [ConfigModule, RedisModule],
   providers: [RateLimitGuard],
-  exports: [RateLimitGuard],
+  exports: [RateLimitGuard, RedisModule],
 })
 export class RateLimitModule {}

@@ -29,29 +29,41 @@ const args =
         'node_modules/vitest/vitest.mjs',
         'run',
         '--config',
-        command === 'hardening'
-          ? 'vitest.config.hardening.ts'
-          : command === 'status'
-            ? 'vitest.config.workflow-status.ts'
-            : command === 'membership'
-              ? 'vitest.config.membership.ts'
-              : 'vitest.config.analytics.ts',
-        command === 'hardening'
-          ? 'test/hardening.database.ts'
-          : command === 'status'
-            ? 'test/workflow-status.database.ts'
-            : command === 'membership'
-              ? 'test/membership.database.ts'
-              : command === 'test'
-                ? 'test/analytics.database.ts'
-                : 'test/analytics.explain.ts',
+        command === 'runbooks'
+          ? 'vitest.config.runbooks.ts'
+          : command === 'hardening'
+            ? 'vitest.config.hardening.ts'
+            : command === 'status'
+              ? 'vitest.config.workflow-status.ts'
+              : command === 'membership'
+                ? 'vitest.config.membership.ts'
+                : 'vitest.config.analytics.ts',
+        command === 'runbooks'
+          ? 'test/runbook.database.ts'
+          : command === 'hardening'
+            ? 'test/hardening.database.ts'
+            : command === 'status'
+              ? 'test/workflow-status.database.ts'
+              : command === 'membership'
+                ? 'test/membership.database.ts'
+                : command === 'test'
+                  ? 'test/analytics.database.ts'
+                  : 'test/analytics.explain.ts',
       ];
 if (
-  !['migrate', 'test', 'explain', 'membership', 'status', 'hardening'].includes(
-    command,
-  )
+  ![
+    'migrate',
+    'test',
+    'explain',
+    'membership',
+    'status',
+    'hardening',
+    'runbooks',
+  ].includes(command)
 )
-  throw new Error('Expected migrate, test, explain, membership, or status');
+  throw new Error(
+    'Expected migrate, test, explain, membership, status, hardening, or runbooks',
+  );
 const result = spawnSync(process.execPath, args, {
   cwd: apiRoot,
   stdio: 'inherit',

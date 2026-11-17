@@ -1,3 +1,4 @@
+import { RunbookModule } from './runbook/runbook.module.js';
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
@@ -25,6 +26,7 @@ import { environmentSchema } from './config/environment.js';
       validationSchema: environmentSchema,
     }),
     HealthModule,
+    RunbookModule,
     AnalyticsModule,
     ProjectModule,
     PrismaModule,

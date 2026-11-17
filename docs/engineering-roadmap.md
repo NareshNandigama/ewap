@@ -42,7 +42,7 @@ their original meaning; completed feature work is not being relabeled.
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
-| 4 Python LangGraph / LLM diagnostics and RAG | Phase 1 complete locally; phases 2–5 pending | Opt-in OpenAI/LangGraph hypotheses, citation validation, deadlines/retries/cancellation; retrieval and evaluation remain pending |
+| 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–2 complete locally; phases 3–5 pending | Opt-in model hypotheses and tenant-owned runbook ingestion with revisions/hashes/chunks; retrieval and evaluation remain pending |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
@@ -56,8 +56,9 @@ the corresponding expanded roadmap task is complete.
 1. **Complete locally, not deployed:** Python model calls and LangGraph diagnostic
    orchestration with Pydantic structured hypotheses, timeouts, bounded retries,
    cancellation, and checked citation membership. Real provider quality is unverified.
-2. RAG ingestion: tenant-owned runbooks, source/version/access metadata, content
-   hashes, chunking, replacement/deletion, and retry-safe indexing.
+2. **Complete locally, not deployed:** tenant-owned runbooks, source/version/access
+   metadata, hashes, chunking, atomic replacement/deletion, and retry-safe chunk
+   persistence. No embeddings or retrieval yet.
 3. Authorized retrieval using PostgreSQL/pgvector as the initial store. Compare
    keyword, vector, and hybrid candidates against labeled cases; add reranking
    only if measured results justify its latency and complexity.
@@ -532,3 +533,37 @@ Validation:
 
 Next: Task 4 phase 2, tenant-owned runbook ingestion and version/access metadata.
 Task 4 as a whole remains incomplete until its remaining phases are verified.
+
+
+## Task 4 phase 2 verification
+
+Verified November 17, 2026. Added the JWT-protected `/runbooks` API with current
+membership checks, admin-only writes/deletion, tenant-owned source keys,
+immutable revisions, content/chunk hashes, and transactional chunk replacement.
+Optimistic versions plus serializable retries handle concurrent writes. Content
+removal retains a content-free version tombstone to protect recreated keys from
+stale writes/deletes. See [runbook ingestion](runbook-ingestion.md) for contracts
+and limits. This completes ingestion/chunk persistence, not vector indexing or RAG.
+
+An additive canonical migration preserves/backfills legacy content and revisions
+and enforces composite document/tenant ownership for chunks/revisions. Worker
+schema was regenerated. Real module tests also found and fixed the rate-limit
+module's missing Redis dependency export; existing auth module tests now boot.
+
+Validation:
+
+- Nine real PostgreSQL/HTTP runbook tests passed, covering tenant separation,
+  roles/current membership, concurrent idempotency, stale versions, rollback,
+  deletion/recreation, pagination, composite ownership, and legacy migration.
+- Two deterministic Unicode chunking/hash tests passed; migrated test database
+  matched the canonical schema with no drift.
+- Nineteen membership HTTP/PostgreSQL regression tests passed after the module fix.
+- Final targeted runbook/rate-limit/Redis/controller run: 16 passed; the optional
+  real-Redis test skipped because no Redis test URL was supplied in this phase.
+- Node 24 API build, lint, and canonical/worker schema consistency check passed.
+- Verification database was stopped afterward without deleting its volume.
+- Migration applied only to the guarded local test database. No production
+  database changes, deployment, external URL fetches, model calls, or embeddings.
+
+Next: Task 4 phase 3, authorized PostgreSQL/pgvector retrieval and measured
+keyword/vector/hybrid candidate comparisons. Task 4 remains incomplete overall.
