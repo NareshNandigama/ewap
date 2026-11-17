@@ -2,7 +2,7 @@
 
 Task 4 phase 2 adds a NestJS API for plain-text runbooks. NestJS owns database
 access; Python remains stateless and does not receive runbooks yet. Authorized
-retrieval and embeddings are phase 3. No documents are fetched from URLs, rendered
+retrieval and opt-in embeddings are documented in [retrieval](runbook-retrieval.md). No documents are fetched from URLs, rendered
 as HTML, executed, or sent to a model during ingestion.
 
 All routes require a JWT. Current organization membership is checked against the

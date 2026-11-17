@@ -42,7 +42,7 @@ their original meaning; completed feature work is not being relabeled.
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
-| 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–2 complete locally; phases 3–5 pending | Opt-in model hypotheses and tenant-owned runbook ingestion with revisions/hashes/chunks; retrieval and evaluation remain pending |
+| 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–3 complete locally; phases 4–5 pending | Opt-in model hypotheses, versioned ingestion, and authorized keyword/vector/hybrid retrieval; diagnostic grounding and held-out evaluation remain pending |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
@@ -59,9 +59,10 @@ the corresponding expanded roadmap task is complete.
 2. **Complete locally, not deployed:** tenant-owned runbooks, source/version/access
    metadata, hashes, chunking, atomic replacement/deletion, and retry-safe chunk
    persistence. No embeddings or retrieval yet.
-3. Authorized retrieval using PostgreSQL/pgvector as the initial store. Compare
-   keyword, vector, and hybrid candidates against labeled cases; add reranking
-   only if measured results justify its latency and complexity.
+3. **Complete locally, not deployed:** authorized PostgreSQL/pgvector retrieval,
+   opt-in embedding indexing, and keyword/vector/hybrid comparison on synthetic
+   labeled development cases. Real model retrieval quality remains unverified;
+   no reranker is justified by current evidence.
 4. Combine retrieved runbook passages with authorized live workflow evidence;
    validate citation membership and claim support, preserve source versions, and
    return insufficient evidence when the cause is not established.
@@ -567,3 +568,46 @@ Validation:
 
 Next: Task 4 phase 3, authorized PostgreSQL/pgvector retrieval and measured
 keyword/vector/hybrid candidate comparisons. Task 4 remains incomplete overall.
+
+
+## Task 4 phase 3 verification
+
+Verified November 17, 2026. Added authenticated `/runbooks/search` and admin-only
+`/runbooks/:sourceKey/index`. Keyword search is the default; vector/hybrid search
+and indexing require an explicit embedding credential. Current membership,
+tenant, access scope, source/version, and vector model/hash checks constrain
+retrieval. Returned passages preserve provenance/version/hashes for phase 4.
+Vector installation uses a document CAS and atomic chunk updates; replacement,
+deletion, stale-generation and partial-write cases were exercised. Shared AI
+rate limits also guard these two routes.
+
+The migration adds nullable embedding provenance and a PostgreSQL GIN full-text
+index. Exact pgvector cosine search is the initial baseline. Five synthetic
+labeled development cases produced keyword Recall@3/MRR@3 0.6/0.6 and vector/hybrid
+1.0/1.0 using manually assigned vectors. This verifies ranking behavior, not real
+embedding quality or production performance. No reranker or default change was
+justified. Details and reproducible comparison artifact are in
+[retrieval](runbook-retrieval.md).
+
+Concurrent database suites exposed Prisma's raw DriverAdapterError serialization
+conflict form. Ingestion now handles that form within its existing three-attempt
+retry bound with short backoff; a regression test covers recovery/exhaustion.
+
+Validation and limits:
+
+- Sixteen real PostgreSQL/pgvector/HTTP tests passed, covering tenant isolation, authorization,
+  metadata, ranking, stale vectors, replacement/deletion, whitespace chunks, and
+  transactional vector rollback, alongside prior ingestion regressions.
+- Eighteen unit tests passed, covering fixed embedding endpoint/model/dimensions, response
+  indexes, malformed/oversized payloads, missing credentials, errors, deadlines,
+  and cancellation. The canonical worker schema remains synchronized.
+- Migration applied only to the guarded local test database; schema diff reported
+  no drift. API Node 24 build, lint, and worker schema sync checks passed. The
+  verification database was stopped afterward without deleting its volume.
+- No paid provider calls, production deployment, or production database changes.
+  Python prompts do not consume retrieved passages yet. Real provider quality,
+  semantic support, held-out evaluation, cost attribution, and larger-corpus
+  latency/recall tuning remain pending.
+
+Next: Task 4 phase 4, combine authorized runbook passages with live workflow
+evidence and validate source citations/claim support. Task 4 remains incomplete.

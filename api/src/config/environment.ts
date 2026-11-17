@@ -34,6 +34,10 @@ export const environmentSchema = Joi.object({
   FRONTEND_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })
     .required(),
+  RUNBOOK_EMBEDDING_API_KEY: Joi.string().optional(),
+  RUNBOOK_EMBEDDING_MODEL: Joi.string()
+    .valid('text-embedding-3-small', 'text-embedding-3-large')
+    .default('text-embedding-3-small'),
   RATE_LIMIT_ENABLED: Joi.boolean().default(true),
   REDIS_URL: Joi.string().optional(),
   AI_DIAGNOSTICS_URL: Joi.string()

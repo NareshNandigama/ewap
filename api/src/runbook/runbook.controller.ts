@@ -1,3 +1,7 @@
+import type { Response } from 'express';
+import { RateLimitGuard } from '../rate-limit/rate-limit.guard.js';
+import { RunbookRetrievalService } from './runbook-retrieval.service.js';
+import { SearchRunbooksDto } from './search-runbooks.dto.js';
 import {
   Body,
   Controller,
@@ -7,6 +11,8 @@ import {
   Param,
   ParseIntPipe,
   Put,
+  Post,
+  Res,
   Query,
   UseGuards,
 } from '@nestjs/common';
@@ -21,7 +27,54 @@ import { RunbookService } from './runbook.service.js';
 @Controller('runbooks')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class RunbookController {
-  constructor(private readonly runbooks: RunbookService) {}
+  constructor(
+    private readonly runbooks: RunbookService,
+    private readonly retrieval: RunbookRetrievalService,
+  ) {}
+
+  private async cancellable<T>(
+    res: Response,
+    work: (signal: AbortSignal) => Promise<T>,
+  ) {
+    const controller = new AbortController();
+    const close = () => {
+      if (!res.writableEnded) controller.abort();
+    };
+    res.on('close', close);
+    if (res.destroyed) controller.abort();
+    try {
+      return await work(controller.signal);
+    } finally {
+      res.off('close', close);
+    }
+  }
+
+  @Post('search')
+  @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  search(
+    @Body() input: SearchRunbooksDto,
+    @CurrentUser() user: JwtPayload,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.cancellable(res, (signal) =>
+      this.retrieval.search(input, user, signal),
+    );
+  }
+
+  @Post(':sourceKey/index')
+  @Roles('ADMIN')
+  @HttpCode(200)
+  @UseGuards(RateLimitGuard)
+  index(
+    @Param('sourceKey') key: string,
+    @CurrentUser() user: JwtPayload,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    return this.cancellable(res, (signal) =>
+      this.retrieval.index(key, user, signal),
+    );
+  }
 
   @Get()
   list(@CurrentUser() user: JwtPayload, @Query('after') after?: string) {

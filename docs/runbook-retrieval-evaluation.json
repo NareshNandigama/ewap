@@ -1,0 +1,189 @@
+{
+  "scope": "Five development fixtures; manually assigned 768D vectors; not real model quality, held-out evaluation, network latency, or production performance.",
+  "corpus": [
+    {
+      "sourceKey": "timeout",
+      "content": "Connection timeout: inspect worker network reachability and retry deadline.",
+      "vectorAxis": 0
+    },
+    {
+      "sourceKey": "pool",
+      "content": "Database pool exhausted: inspect active sessions and reduce connection concurrency.",
+      "vectorAxis": 1
+    },
+    {
+      "sourceKey": "auth",
+      "content": "JWT token expired: sign in again and check token lifetime.",
+      "vectorAxis": 2
+    }
+  ],
+  "measurements": [
+    {
+      "mode": "keyword",
+      "recallAt3": 0.6,
+      "mrrAt3": 0.6,
+      "cases": [
+        {
+          "query": "connection timeout",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 11.631
+        },
+        {
+          "query": "database pool",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 9.681
+        },
+        {
+          "query": "JWT token expired",
+          "expected": "auth",
+          "returned": [
+            "auth"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 8.187
+        },
+        {
+          "query": "network stall",
+          "expected": "timeout",
+          "returned": [],
+          "reciprocalRank": 0,
+          "hit": 0,
+          "elapsedMs": 7.953
+        },
+        {
+          "query": "session saturation",
+          "expected": "pool",
+          "returned": [],
+          "reciprocalRank": 0,
+          "hit": 0,
+          "elapsedMs": 7.56
+        }
+      ]
+    },
+    {
+      "mode": "vector",
+      "recallAt3": 1,
+      "mrrAt3": 1,
+      "cases": [
+        {
+          "query": "connection timeout",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 8.207
+        },
+        {
+          "query": "database pool",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 8.08
+        },
+        {
+          "query": "JWT token expired",
+          "expected": "auth",
+          "returned": [
+            "auth"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.926
+        },
+        {
+          "query": "network stall",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.321
+        },
+        {
+          "query": "session saturation",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.453
+        }
+      ]
+    },
+    {
+      "mode": "hybrid",
+      "recallAt3": 1,
+      "mrrAt3": 1,
+      "cases": [
+        {
+          "query": "connection timeout",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.883
+        },
+        {
+          "query": "database pool",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.79
+        },
+        {
+          "query": "JWT token expired",
+          "expected": "auth",
+          "returned": [
+            "auth"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 8.769
+        },
+        {
+          "query": "network stall",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.522
+        },
+        {
+          "query": "session saturation",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.764
+        }
+      ]
+    }
+  ]
+}

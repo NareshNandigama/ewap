@@ -62,10 +62,19 @@ export class RunbookService {
         });
       } catch (error) {
         if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          ['P2002', 'P2034'].includes(error.code)
+          (error instanceof Prisma.PrismaClientKnownRequestError &&
+            ['P2002', 'P2034'].includes(error.code)) ||
+          (error instanceof Error &&
+            error.name === 'DriverAdapterError' &&
+            (error.cause as { kind?: string } | undefined)?.kind ===
+              'TransactionWriteConflict')
         ) {
-          if (attempt < 2) continue;
+          if (attempt < 2) {
+            await new Promise((resolve) =>
+              setTimeout(resolve, 20 * (attempt + 1)),
+            );
+            continue;
+          }
           throw new ConflictException(
             'Concurrent runbook change; retry with the current version',
           );

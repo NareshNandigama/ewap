@@ -194,15 +194,17 @@ model KnowledgeDocumentRevision {
 }
 
 model KnowledgeChunk {
-  id              String                      @id @default(uuid())
-  documentId      String
-  chunkIndex      Int
-  documentVersion Int                         @default(1)
-  contentHash     String
-  content         String                      @db.Text
-  createdAt       DateTime                    @default(now())
-  organizationId  String
-  embedding       Unsupported("vector(768)")?
+  id                   String                      @id @default(uuid())
+  documentId           String
+  chunkIndex           Int
+  documentVersion      Int                         @default(1)
+  contentHash          String
+  content              String                      @db.Text
+  createdAt            DateTime                    @default(now())
+  organizationId       String
+  embeddingModel       String?
+  embeddingContentHash String?
+  embedding            Unsupported("vector(768)")?
 
   document KnowledgeDocument @relation(fields: [documentId, organizationId], references: [id, organizationId], onDelete: Cascade)
 

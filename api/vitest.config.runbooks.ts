@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     globals: true,
     root: './',
-    include: ['test/runbook.database.ts'],
+    include: ['test/runbook.database.ts', 'test/runbook-retrieval.database.ts'],
     testTimeout: 15000,
     hookTimeout: 60000,
   },

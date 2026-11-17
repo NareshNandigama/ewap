@@ -320,7 +320,9 @@ with optional authenticated NestJS integration and TypeScript fallback. Python
 defaults to deterministic analysis and now supports opt-in LangGraph/OpenAI
 structured hypotheses; see the service README for limits and configuration.
 Tenant-scoped runbook ingestion is documented in
-[runbook ingestion](docs/runbook-ingestion.md); retrieval is the next phase.
+[runbook ingestion](docs/runbook-ingestion.md). Authorized keyword/vector/hybrid
+[runbook retrieval](docs/runbook-retrieval.md) is available; combining passages
+with diagnostic answers is the next phase.
 Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 An isolated Python Docker setup and live NestJS-to-Python verification command

@@ -21,7 +21,7 @@ fixtures opt out because they test separate boundaries.
 | All AI POST routes combined, per user within tenant | 15 |
 
 AI routes include `/ai/ask`, `/ai/ask/stream`, `/ai/agent/diagnose`, and
-`/integrations/events/diagnose`. Read-only conversation routes do not consume
+`/integrations/events/diagnose`, `/runbooks/search`, and `/runbooks/:sourceKey/index`. Read-only conversation routes do not consume
 AI quota. JWT guards run before AI quota checks. Tenant/user identities come
 from the verified JWT. Authentication attempts count regardless of success;
 AI requests count before validation, authorized run lookup, or provider work.

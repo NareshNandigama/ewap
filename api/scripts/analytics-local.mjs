@@ -39,7 +39,7 @@ const args =
                 ? 'vitest.config.membership.ts'
                 : 'vitest.config.analytics.ts',
         command === 'runbooks'
-          ? 'test/runbook.database.ts'
+          ? 'test/runbook'
           : command === 'hardening'
             ? 'test/hardening.database.ts'
             : command === 'status'
