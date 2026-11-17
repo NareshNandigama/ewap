@@ -42,7 +42,7 @@ their original meaning; completed feature work is not being relabeled.
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
-| 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–3 complete locally; phases 4–5 pending | Opt-in model hypotheses, versioned ingestion, and authorized keyword/vector/hybrid retrieval; diagnostic grounding and held-out evaluation remain pending |
+| 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–4 complete locally; phase 5 offline gates pass, live acceptance pending (provider HTTP 429) | Grounded extraction and evaluation runners implemented; real-model quality/latency/cost acceptance remains open |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
@@ -63,11 +63,13 @@ the corresponding expanded roadmap task is complete.
    opt-in embedding indexing, and keyword/vector/hybrid comparison on synthetic
    labeled development cases. Real model retrieval quality remains unverified;
    no reranker is justified by current evidence.
-4. Combine retrieved runbook passages with authorized live workflow evidence;
-   validate citation membership and claim support, preserve source versions, and
-   return insufficient evidence when the cause is not established.
-5. Development/held-out evaluations for retrieval and grounded answers, including
-   tenant isolation, injection, missing/conflicting sources, latency, and cost.
+4. **Complete locally, not deployed:** authorized runbook/workflow snapshots,
+   exact extractive claim support and citation checks, preserved versions, and
+   explicit insufficient-evidence outcomes. No causal confirmation is inferred.
+5. **Implemented; acceptance incomplete:** development/held-out fixtures, real
+   database/HTTP isolation tests, offline grounded gates, and bounded live runners
+   with latency/usage/cost reporting. Live development smoke returned HTTP 429;
+   real-model quality/held-out acceptance remains pending.
 
 Existing knowledge/vector schema fields are groundwork, not a verified RAG
 pipeline. The deterministic Python service remains the default while these phases
@@ -611,3 +613,49 @@ Validation and limits:
 
 Next: Task 4 phase 4, combine authorized runbook passages with live workflow
 evidence and validate source citations/claim support. Task 4 remains incomplete.
+
+
+## Task 4 phases 4–5 implementation and acceptance
+
+Verified November 17, 2026. The opt-in `retrievalMode` diagnostic path authorizes
+the workflow before retrieval/model work, projects up to five tenant-owned
+versioned passages, and invokes Python over the authenticated service boundary.
+The model selects extractive observations; Python and NestJS validate exact log
+quotes and source membership/version/hash. Accepted claims equal their log quote;
+references do not establish causality or verified fixes. Empty/missing evidence
+abstains without provider work. Grounded failures never downgrade to ungrounded
+TypeScript answers. Original diagnostics remain compatible when retrievalMode is
+omitted. Browser cancellation reaches provider work and source snapshots remain
+explicitly versioned. See [grounding](grounded-diagnostics.md).
+
+Evaluation infrastructure is implemented: six development and six frozen held-out
+grounded cases, three additional held-out synthetic retrieval cases, offline and
+opt-in real-provider runners, sanitized metrics, latency percentiles, successful
+usage, and optional supplied-price cost estimates. The offline contract suite
+passes all 12 grounded cases. It is not a substitute for model-quality evaluation.
+
+A bounded live smoke attempt using the existing configured credential and repo
+model was rejected with **HTTP 429**. No production evidence was sent; only a
+synthetic development case was used. The sanitized result is checked in. Further
+provider attempts were stopped. Failed-call billing is unknown; successful-call
+usage totals do not establish zero spend. Phase 5 acceptance and Task 4 overall
+remain open until the provider accepts requests and development/held-out live
+quality, latency, cost and real-corpus relevance gates are evaluated.
+
+Validation:
+
+- Host Python 3.14: 76 tests passed, including grounded schema/hash/support and
+  frozen-split offline evaluation tests.
+- Targeted API diagnostics/controller/module tests: 54 passed, including forged quotes,
+  source versions/hashes, authorization ordering, and refusal to downgrade.
+- Real PostgreSQL/HTTP ingestion/retrieval tests: 16 passed, with development and
+  held-out synthetic comparisons. Four additional PostgreSQL → NestJS HTTP →
+  Python HTTP/LangGraph tests passed with an explicitly mocked model transport.
+- Python 3.12 Docker suite: all 76 tests passed. Source distribution and wheel
+  built; pip check passed. Node 24 build, lint, and schema consistency passed.
+- The verification database was stopped afterward without deleting its volume.
+- No new schema migration, cloud deployment, or production data mutation in this
+  phase. Existing deprecation warnings remain nonfatal.
+
+Next required acceptance work: resolve the provider's 429 response and run the
+frozen live evaluations. Task 5 deployment is not started by this work.

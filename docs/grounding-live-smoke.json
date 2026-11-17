@@ -1,0 +1,34 @@
+{
+  "summary": {
+    "bySplit": {
+      "development": {
+        "passed": 0,
+        "total": 1
+      }
+    },
+    "latencyMs": {
+      "p50": 832.408,
+      "p95": 832.408
+    },
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "usageComplete": false
+  },
+  "provider": "openai",
+  "scope": "Live provider evaluation; successful-call usage, estimated cost excludes failed/retried calls",
+  "cases": [
+    {
+      "id": "dev-observed",
+      "split": "development",
+      "category": "supported",
+      "passed": false,
+      "status": "unavailable",
+      "failureReason": "provider_http_429",
+      "elapsedMs": 832.408
+    }
+  ],
+  "passed": 0,
+  "total": 1,
+  "smokeRequestsMade": 2,
+  "note": "Two bounded requests for the same synthetic development case; the second classified the provider rejection as HTTP 429. No successful generation observed; failed-call spend unknown."
+}

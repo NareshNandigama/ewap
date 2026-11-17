@@ -1,3 +1,4 @@
+import { GroundedDiagnosticsService } from './grounded-diagnostics.service.js';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard.js';
 import {
   Body,
@@ -5,6 +6,7 @@ import {
   Get,
   HttpCode,
   Param,
+  Optional,
   Post,
   Query,
   Res,
@@ -12,7 +14,7 @@ import {
 } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { AskAiDto } from './dto/ask-ai.dto.js';
+import { AskAiDto, DiagnoseWorkflowDto } from './dto/ask-ai.dto.js';
 import { AiService } from './ai.service.js';
 import { WorkflowDiagnosticsService } from './workflow-diagnostics.service.js';
 import { AiConversationService } from './ai-conversation.service.js';
@@ -28,6 +30,7 @@ export class AiController {
     private readonly aiService: AiService,
     private readonly aiConversationService: AiConversationService,
     private readonly workflowDiagnostics: WorkflowDiagnosticsService,
+    @Optional() private readonly grounded?: GroundedDiagnosticsService,
   ) {}
 
   @Get('conversations')
@@ -57,7 +60,32 @@ export class AiController {
   // Optional Python diagnostics with the existing TypeScript graph as fallback.
   @Post('agent/diagnose')
   @UseGuards(RateLimitGuard)
-  async diagnose(@Body() dto: AskAiDto, @CurrentUser() user: JwtPayload) {
+  async diagnose(
+    @Body() dto: DiagnoseWorkflowDto,
+    @CurrentUser() user: JwtPayload,
+    @Res({ passthrough: true }) res?: Response,
+  ) {
+    if (dto.retrievalMode) {
+      if (!this.grounded)
+        throw new Error('Grounded diagnostics not configured');
+      const cancel = new AbortController();
+      const close = () => {
+        if (!res?.writableEnded) cancel.abort();
+      };
+      res?.on('close', close);
+      if (res?.destroyed) cancel.abort();
+      try {
+        return await this.grounded.diagnose(
+          dto.question,
+          dto.workflowRunId,
+          user,
+          dto.retrievalMode,
+          cancel.signal,
+        );
+      } finally {
+        res?.off('close', close);
+      }
+    }
     return this.workflowDiagnostics.diagnose(
       dto.question,
       dto.workflowRunId,

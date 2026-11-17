@@ -257,8 +257,9 @@ with strict JSON schema, no tools, `store: false`, and a 1,600 completion-token
 cap. The latest 20 supplied logs (timestamp, then ID) plus the bounded question
 and status are sent; tenant/run identifiers are excluded. Log IDs are retained
 for citations. Redact sensitive log content before submitting it: this mode
-sends evidence to an external provider. No runbooks, vectors, or retrieval are
-implemented yet. Tracing is disabled explicitly for this graph, including when
+sends evidence to an external provider. Authorized runbook retrieval is implemented in NestJS; the optional
+[grounded diagnostic contract](../docs/grounded-diagnostics.md) passes versioned
+passages to Python. Tracing is disabled explicitly for this graph, including when
 LangSmith tracing variables are set. No checkpoint/history is retained.
 
 Up to five findings contain `hypothesis`, `log_id`, and `quote`. Both Python
@@ -300,3 +301,20 @@ and [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/st
 Phase 1 verification uses HTTPX mock transport through the actual graph and HTTP
 route. No paid provider requests were made; real provider/model quality and
 production behavior are not claimed verified.
+
+
+## Grounded diagnostics and evaluation
+
+The diagnostic request optionally accepts `grounding` with retrieval mode and up
+to five explicit versioned passages. NestJS builds this snapshot only after run
+and tenant authorization. The model selects extractive log observations and
+runbook references; Python checks exact quotes/hashes and NestJS revalidates the
+returned source snapshot. Unsupported causal paraphrases are not published.
+No matching evidence produces an explicit insufficient-evidence result; empty
+retrieval skips model work. Deterministic mode remains the default and abstains.
+
+[Grounding and evaluation instructions](../docs/grounded-diagnostics.md) describe
+the contract, conservative support semantics, development/held-out cases, offline
+runner, live runner, latency/usage/cost reporting, and the outstanding provider
+acceptance gate. The real development smoke request returned HTTP 429; do not
+interpret the passing scripted offline suite as real model-quality acceptance.

@@ -101,6 +101,107 @@ describe('PythonDiagnosticsClient', () => {
     }
   });
 
+  it('checks grounded claims, source versions/hashes and source snapshot membership', async () => {
+    const passage = {
+      chunkId: 'chunk-1',
+      documentId: 'doc-1',
+      sourceKey: 'timeouts',
+      version: 3,
+      documentHash: 'a'.repeat(64),
+      chunkHash: 'b'.repeat(64),
+      content: 'Inspect worker connectivity.',
+    };
+    const context = { mode: 'keyword' as const, passages: [passage] };
+    const observation = {
+      claim: run.logs[0].message,
+      log_id: run.logs[0].id,
+      log_quote: run.logs[0].message,
+      passage_id: passage.chunkId,
+      passage_quote: passage.content,
+    };
+    const grounded = {
+      ...report,
+      analysisMode: 'llm',
+      findings: [],
+      usage: { model: 'test-model', inputTokens: 100, outputTokens: 40 },
+      grounding: {
+        status: 'supported_observations',
+        passages: [passage],
+        observations: [observation],
+      },
+    };
+    const ask = () =>
+      create().diagnose('org-1', 'Why failed?', run as never, context);
+    fetchMock.mockResolvedValue(Response.json(grounded));
+    await expect(ask()).resolves.toEqual(grounded);
+    expect(JSON.parse(fetchMock.mock.calls.at(-1)[1].body).grounding).toEqual(
+      context,
+    );
+    for (const invalid of [
+      {
+        ...grounded,
+        grounding: {
+          ...grounded.grounding,
+          passages: [{ ...passage, version: 4 }],
+        },
+      },
+      {
+        ...grounded,
+        grounding: {
+          ...grounded.grounding,
+          passages: [{ ...passage, chunkHash: 'c'.repeat(64) }],
+        },
+      },
+      {
+        ...grounded,
+        grounding: {
+          ...grounded.grounding,
+          observations: [
+            { ...observation, claim: 'The firewall caused this incident' },
+          ],
+        },
+      },
+      {
+        ...grounded,
+        grounding: {
+          ...grounded.grounding,
+          observations: [{ ...observation, passage_id: 'foreign-tenant' }],
+        },
+      },
+      {
+        ...grounded,
+        grounding: {
+          ...grounded.grounding,
+          observations: [
+            { ...observation, passage_quote: 'Fabricated recommendation' },
+          ],
+        },
+      },
+      {
+        ...grounded,
+        grounding: { ...grounded.grounding, status: 'insufficient_evidence' },
+      },
+      { ...grounded, grounding: undefined },
+    ]) {
+      fetchMock.mockResolvedValue(Response.json(invalid));
+      await expect(ask()).rejects.toMatchObject({ reason: 'invalid_response' });
+    }
+    fetchMock.mockResolvedValue(
+      Response.json({
+        ...grounded,
+        usage: undefined,
+        grounding: {
+          ...grounded.grounding,
+          status: 'insufficient_evidence',
+          observations: [],
+        },
+      }),
+    );
+    await expect(ask()).resolves.toMatchObject({
+      grounding: { status: 'insufficient_evidence' },
+    });
+  });
+
   it('maps cached timestamps, omits private fields, and bounds logs/messages', async () => {
     const evidence = {
       ...run,

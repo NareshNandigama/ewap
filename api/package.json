@@ -27,6 +27,7 @@
     "test:workflow-status:db": "node scripts/analytics-local.mjs status",
     "analytics:explain": "node scripts/analytics-local.mjs explain",
     "test:startup:image": "node scripts/startup-image.mjs",
+    "test:grounding:db": "node scripts/analytics-local.mjs grounding",
     "test:runbooks:db": "node scripts/analytics-local.mjs runbooks",
     "test:hardening:db": "node scripts/analytics-local.mjs hardening",
     "schema:check": "node ../scripts/schema-sync.mjs --check"

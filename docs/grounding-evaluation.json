@@ -1,0 +1,171 @@
+{
+  "summary": {
+    "usageComplete": true,
+    "bySplit": {
+      "development": {
+        "passed": 6,
+        "total": 6
+      },
+      "heldout": {
+        "passed": 6,
+        "total": 6
+      }
+    },
+    "latencyMs": {
+      "p50": 3.0445,
+      "p95": 6.577
+    },
+    "inputTokens": 900,
+    "outputTokens": 360
+  },
+  "provider": "mock",
+  "scope": "Contract evaluation with scripted outputs; not model quality",
+  "cases": [
+    {
+      "id": "dev-observed",
+      "split": "development",
+      "category": "supported",
+      "passed": true,
+      "status": "supported_observations",
+      "acceptedObservations": 1,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 6.577
+    },
+    {
+      "id": "dev-missing-sources",
+      "split": "development",
+      "category": "missing",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 3.046
+    },
+    {
+      "id": "dev-foreign-citation",
+      "split": "development",
+      "category": "tenant-citation",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 3.591
+    },
+    {
+      "id": "dev-free-causal-claim",
+      "split": "development",
+      "category": "unsupported-claim",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 3.489
+    },
+    {
+      "id": "dev-injected-source",
+      "split": "development",
+      "category": "injection",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 2.981
+    },
+    {
+      "id": "dev-conflicting",
+      "split": "development",
+      "category": "conflicting",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 3.391
+    },
+    {
+      "id": "heldout-versioned",
+      "split": "heldout",
+      "category": "versioned-supported",
+      "passed": true,
+      "status": "supported_observations",
+      "acceptedObservations": 1,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 3.043
+    },
+    {
+      "id": "heldout-fabricated-quote",
+      "split": "heldout",
+      "category": "fabricated-source",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 3.104
+    },
+    {
+      "id": "heldout-no-logs",
+      "split": "heldout",
+      "category": "missing",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 2.473
+    },
+    {
+      "id": "heldout-success",
+      "split": "heldout",
+      "category": "status",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 0,
+      "outputTokens": 0,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 1.943
+    },
+    {
+      "id": "heldout-injected-log",
+      "split": "heldout",
+      "category": "injection",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 2.951
+    },
+    {
+      "id": "heldout-conflicting",
+      "split": "heldout",
+      "category": "conflicting",
+      "passed": true,
+      "status": "insufficient_evidence",
+      "acceptedObservations": 0,
+      "inputTokens": 100,
+      "outputTokens": 40,
+      "rootCauseUndetermined": true,
+      "elapsedMs": 2.787
+    }
+  ],
+  "passed": 12,
+  "total": 12
+}

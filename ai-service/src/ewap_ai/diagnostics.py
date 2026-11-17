@@ -49,7 +49,7 @@ def diagnose(request: DiagnosticRequest) -> DiagnosticResponse:
         limitations.append(
             "Warnings or errors exist in the snapshot, but do not override the supplied SUCCESS status."
         )
-    return DiagnosticResponse.model_validate({
+    report = DiagnosticResponse.model_validate({
         "organizationId": request.organization_id,
         "workflowRunId": run.id,
         "executionStatus": run.status,
@@ -59,3 +59,9 @@ def diagnose(request: DiagnosticRequest) -> DiagnosticResponse:
         "limitations": limitations,
         "nextSteps": NEXT_STEPS[run.status],
     })
+
+    if request.grounding is not None:
+        from .grounding import supported
+        report.grounding = supported(request, [])
+        report.limitations.append("Insufficient supported evidence: deterministic mode does not select runbook observations.")
+    return report

@@ -44,9 +44,14 @@ const cases = [
   { query: 'network stall', relevant: 'timeout', axis: 0 },
   { query: 'session saturation', relevant: 'pool', axis: 1 },
 ];
+const heldoutCases = [
+  { query: 'worker network reachability', relevant: 'timeout', axis: 0 },
+  { query: 'active sessions', relevant: 'pool', axis: 1 },
+  { query: 'expired credentials', relevant: 'auth', axis: 2 },
+];
 const fixtureVector = (text: string) =>
   vector(
-    cases.find((c) => c.query === text)?.axis ??
+    [...cases, ...heldoutCases].find((c) => c.query === text)?.axis ??
       corpus.find((c) => c.content === text)?.axis ??
       7,
   );
@@ -164,7 +169,10 @@ describe('Authorized PostgreSQL/pgvector retrieval', () => {
     const measurements = [];
     for (const mode of ['keyword', 'vector', 'hybrid'] as const) {
       const rows = [];
-      for (const item of cases) {
+      for (const item of [
+        ...cases.map((c) => ({ ...c, split: 'development' })),
+        ...heldoutCases.map((c) => ({ ...c, split: 'heldout' })),
+      ]) {
         const start = performance.now();
         const result = await retrieval.search(
           { query: item.query, mode, limit: 3 },
@@ -174,6 +182,7 @@ describe('Authorized PostgreSQL/pgvector retrieval', () => {
           result.passages.findIndex((p) => p.sourceKey === item.relevant) + 1;
         rows.push({
           query: item.query,
+          split: item.split,
           expected: item.relevant,
           returned: result.passages.map((p) => p.sourceKey),
           reciprocalRank: rank > 0 ? 1 / rank : 0,
@@ -192,8 +201,8 @@ describe('Authorized PostgreSQL/pgvector retrieval', () => {
         cases: rows,
       });
     }
-    expect(measurements.map((m) => m.recallAt3)).toEqual([0.6, 1, 1]);
-    expect(measurements.map((m) => m.mrrAt3)).toEqual([0.6, 1, 1]);
+    expect(measurements.map((m) => m.recallAt3)).toEqual([0.625, 1, 1]);
+    expect(measurements.map((m) => m.mrrAt3)).toEqual([0.625, 1, 1]);
     if (process.env.RUNBOOK_WRITE_EVAL === '1')
       writeFileSync(
         new URL(
@@ -203,7 +212,7 @@ describe('Authorized PostgreSQL/pgvector retrieval', () => {
         JSON.stringify(
           {
             scope:
-              'Five development fixtures; manually assigned 768D vectors; not real model quality, held-out evaluation, network latency, or production performance.',
+              'Five development and three frozen held-out fixtures; manually assigned 768D vectors; not real model quality, real-provider held-out evaluation, network latency, or production performance.',
             corpus: corpus.map((c) => ({
               sourceKey: c.key,
               content: c.content,

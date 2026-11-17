@@ -16,8 +16,34 @@ export interface DiagnosticLog {
   createdAt: string;
 }
 
+export interface GroundingPassage {
+  chunkId: string;
+  documentId: string;
+  sourceKey: string;
+  version: number;
+  documentHash: string;
+  chunkHash: string;
+  content: string;
+}
+export interface GroundingContext {
+  mode: 'keyword' | 'vector' | 'hybrid';
+  passages: GroundingPassage[];
+}
+export interface GroundedObservation {
+  claim: string;
+  log_id: string;
+  log_quote: string;
+  passage_id: string;
+  passage_quote: string;
+}
+
 export interface PythonDiagnosticReport {
   analysisMode: 'deterministic' | 'llm';
+  grounding?: {
+    status: 'supported_observations' | 'insufficient_evidence';
+    observations: GroundedObservation[];
+    passages: GroundingPassage[];
+  };
   findings?: { hypothesis: string; log_id: string; quote: string }[];
   usage?: { model: string; inputTokens: number; outputTokens: number };
   organizationId: string;
@@ -38,7 +64,38 @@ const logSchema = Joi.object({
   createdAt: Joi.string().isoDate().required(),
 }).unknown(false);
 
+const passageSchema = Joi.object({
+  chunkId: Joi.string().min(1).max(200).required(),
+  documentId: Joi.string().min(1).max(200).required(),
+  sourceKey: Joi.string().min(1).max(200).required(),
+  version: Joi.number().integer().min(1).required(),
+  documentHash: Joi.string()
+    .pattern(/^[a-f0-9]{64}$/)
+    .required(),
+  chunkHash: Joi.string()
+    .pattern(/^[a-f0-9]{64}$/)
+    .required(),
+  content: Joi.string().min(1).max(2000).required(),
+}).unknown(false);
+const observationSchema = Joi.object({
+  claim: Joi.string().min(8).max(500).required(),
+  log_id: Joi.string().min(1).max(200).required(),
+  log_quote: Joi.string().min(8).max(500).required(),
+  passage_id: Joi.string().min(1).max(200).required(),
+  passage_quote: Joi.string().min(8).max(500).required(),
+}).unknown(false);
 const responseSchema = Joi.object({
+  grounding: Joi.object({
+    status: Joi.string()
+      .valid('supported_observations', 'insufficient_evidence')
+      .required(),
+    observations: Joi.array().items(observationSchema).max(5).required(),
+    passages: Joi.array()
+      .items(passageSchema)
+      .max(5)
+      .unique('chunkId')
+      .required(),
+  }).unknown(false),
   analysisMode: Joi.string().valid('deterministic', 'llm').required(),
   findings: Joi.array()
     .items(
@@ -136,6 +193,8 @@ export class PythonDiagnosticsClient {
     organizationId: string,
     question: string,
     run: AuthorizedRun,
+    grounding?: GroundingContext,
+    signal?: AbortSignal,
   ): Promise<PythonDiagnosticReport> {
     if (!this.endpoint) throw new PythonDiagnosticsFailure('unavailable');
     const logs: DiagnosticLog[] = run.logs.slice(-100).map((log) => ({
@@ -148,12 +207,16 @@ export class PythonDiagnosticsClient {
     const body = JSON.stringify({
       organizationId,
       question,
+      ...(grounding ? { grounding } : {}),
       workflowRun: { id: run.id, status: run.status, logs },
     });
     if (Buffer.byteLength(body) > MAX_BYTES)
       throw new PythonDiagnosticsFailure('invalid_evidence');
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const cancel = () => controller.abort();
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) controller.abort();
+    const timer = setTimeout(cancel, this.timeoutMs);
     try {
       const response = await fetch(this.endpoint, {
         method: 'POST',
@@ -206,7 +269,9 @@ export class PythonDiagnosticsClient {
         : 'not_applicable';
       if (
         (report.analysisMode === 'llm' &&
-          (!report.findings || !report.usage)) ||
+          (!report.findings ||
+            (!report.usage &&
+              report.grounding?.status !== 'insufficient_evidence'))) ||
         (report.analysisMode === 'deterministic' &&
           (report.findings !== undefined || report.usage !== undefined)) ||
         report.findings?.some(
@@ -235,6 +300,44 @@ export class PythonDiagnosticsClient {
       ) {
         throw new PythonDiagnosticsFailure('invalid_response');
       }
+      if (grounding) {
+        const result = report.grounding;
+        const equalPassage = (a: GroundingPassage, b: GroundingPassage) =>
+          a.chunkId === b.chunkId &&
+          a.documentId === b.documentId &&
+          a.sourceKey === b.sourceKey &&
+          a.version === b.version &&
+          a.documentHash === b.documentHash &&
+          a.chunkHash === b.chunkHash &&
+          a.content === b.content;
+        if (
+          !result ||
+          result.passages.length !== grounding.passages.length ||
+          result.passages.some(
+            (p, i) => !equalPassage(p, grounding.passages[i]),
+          ) ||
+          (result.status === 'supported_observations') !==
+            result.observations.length > 0 ||
+          (report.findings?.length ?? 0) > 0 ||
+          result.observations.some(
+            (o) =>
+              o.claim !== o.log_quote ||
+              !logs.some(
+                (l) =>
+                  l.id === o.log_id &&
+                  ['ERROR', 'WARN'].includes(l.level) &&
+                  l.message.includes(o.log_quote),
+              ) ||
+              !grounding.passages.some(
+                (p) =>
+                  p.chunkId === o.passage_id &&
+                  p.content.includes(o.passage_quote),
+              ),
+          )
+        )
+          throw new PythonDiagnosticsFailure('invalid_response');
+      } else if (report.grounding)
+        throw new PythonDiagnosticsFailure('invalid_response');
       return report;
     } catch (error) {
       if (error instanceof PythonDiagnosticsFailure) throw error;
@@ -245,6 +348,8 @@ export class PythonDiagnosticsClient {
       throw new PythonDiagnosticsFailure('unavailable');
     } finally {
       clearTimeout(timer);
+      signal?.removeEventListener('abort', cancel);
+      controller.abort();
     }
   }
 }

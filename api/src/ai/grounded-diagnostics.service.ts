@@ -1,0 +1,114 @@
+import {
+  BadRequestException,
+  Injectable,
+  ServiceUnavailableException,
+} from '@nestjs/common';
+import type { JwtPayload } from '../auth/types/jwt-payload.js';
+import { WorkflowRunService } from '../workflow-run/workflow-run.service.js';
+import { RunbookRetrievalService } from '../runbook/runbook-retrieval.service.js';
+import {
+  PythonDiagnosticsClient,
+  type GroundingContext,
+} from './python-diagnostics.client.js';
+
+@Injectable()
+export class GroundedDiagnosticsService {
+  constructor(
+    private readonly runs: WorkflowRunService,
+    private readonly retrieval: RunbookRetrievalService,
+    private readonly python: PythonDiagnosticsClient,
+  ) {}
+
+  async diagnose(
+    question: string,
+    runId: string,
+    user: JwtPayload,
+    mode: 'keyword' | 'vector' | 'hybrid',
+    signal?: AbortSignal,
+  ) {
+    const controller = new AbortController();
+    const cancel = () => controller.abort();
+    const timer = setTimeout(cancel, 35000);
+    signal?.addEventListener('abort', cancel, { once: true });
+    if (signal?.aborted) controller.abort();
+    try {
+      return await this.run(question, runId, user, mode, controller.signal);
+    } finally {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', cancel);
+    }
+  }
+
+  private async run(
+    question: string,
+    runId: string,
+    user: JwtPayload,
+    mode: 'keyword' | 'vector' | 'hybrid',
+    signal: AbortSignal,
+  ) {
+    signal.throwIfAborted();
+    if (
+      typeof question !== 'string' ||
+      question.trim().length < 3 ||
+      question.length > 1000 ||
+      !['keyword', 'vector', 'hybrid'].includes(mode)
+    )
+      throw new BadRequestException(
+        'Grounded questions must contain 3–1000 characters',
+      );
+    // Neither retrieval nor model work can happen before the authorized run lookup.
+    const run = await this.runs.findOne(runId, user.organizationId);
+    if (!this.python.isEnabled())
+      throw new ServiceUnavailableException(
+        'Python grounded diagnostics are not configured',
+      );
+    const result = await this.retrieval.search(
+      { query: question.trim(), mode, limit: 5 },
+      user,
+      signal,
+    );
+    const grounding: GroundingContext = {
+      mode,
+      passages: result.passages.map((p) => ({
+        chunkId: p.chunkId,
+        documentId: p.documentId,
+        sourceKey: p.sourceKey,
+        version: p.version,
+        documentHash: p.documentHash,
+        chunkHash: p.chunkHash,
+        content: p.content,
+      })),
+    };
+    signal?.throwIfAborted();
+    let diagnostics;
+    try {
+      diagnostics = await this.python.diagnose(
+        user.organizationId,
+        question.trim(),
+        run,
+        grounding,
+        signal,
+      );
+    } catch {
+      throw new ServiceUnavailableException('Grounded diagnostics unavailable');
+    }
+    // Never downgrade a grounded request to an ungrounded TypeScript/provider response.
+    const evidence = diagnostics.grounding;
+    if (!evidence)
+      throw new ServiceUnavailableException('Grounded diagnostics unavailable');
+    const answer = [
+      '[Grounded evidence — root cause not established]',
+      diagnostics.summary,
+      `Root cause: ${diagnostics.rootCause.status === 'not_applicable' ? 'No failure established by the run status.' : 'Undetermined from available evidence.'}`,
+      ...(evidence.status === 'insufficient_evidence'
+        ? ['Insufficient evidence for supported observations.']
+        : []),
+      ...evidence.observations.map((o) => {
+        const p = evidence.passages.find((p) => p.chunkId === o.passage_id)!;
+        return `Observed log ${o.log_id}: ${o.claim}\nRelated runbook ${p.sourceKey} v${p.version} (${p.documentHash}, chunk ${p.chunkId}): ${o.passage_quote}\nThis reference does not establish a cause or verified fix.`;
+      }),
+      ...diagnostics.limitations.map((item) => `Limitation: ${item}`),
+    ].join('\n');
+    return { answer, source: 'python-grounded' as const, diagnostics };
+  }
+}

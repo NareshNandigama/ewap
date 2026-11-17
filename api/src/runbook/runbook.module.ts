@@ -10,6 +10,7 @@ import { RunbookService } from './runbook.service.js';
 
 @Module({
   imports: [AuthModule, PrismaModule, ConfigModule, RateLimitModule],
+  exports: [RunbookRetrievalService],
   controllers: [RunbookController],
   providers: [RunbookService, EmbeddingClient, RunbookRetrievalService],
 })

@@ -29,26 +29,30 @@ const args =
         'node_modules/vitest/vitest.mjs',
         'run',
         '--config',
-        command === 'runbooks'
-          ? 'vitest.config.runbooks.ts'
-          : command === 'hardening'
-            ? 'vitest.config.hardening.ts'
-            : command === 'status'
-              ? 'vitest.config.workflow-status.ts'
-              : command === 'membership'
-                ? 'vitest.config.membership.ts'
-                : 'vitest.config.analytics.ts',
-        command === 'runbooks'
-          ? 'test/runbook'
-          : command === 'hardening'
-            ? 'test/hardening.database.ts'
-            : command === 'status'
-              ? 'test/workflow-status.database.ts'
-              : command === 'membership'
-                ? 'test/membership.database.ts'
-                : command === 'test'
-                  ? 'test/analytics.database.ts'
-                  : 'test/analytics.explain.ts',
+        command === 'grounding'
+          ? 'vitest.config.grounding.ts'
+          : command === 'runbooks'
+            ? 'vitest.config.runbooks.ts'
+            : command === 'hardening'
+              ? 'vitest.config.hardening.ts'
+              : command === 'status'
+                ? 'vitest.config.workflow-status.ts'
+                : command === 'membership'
+                  ? 'vitest.config.membership.ts'
+                  : 'vitest.config.analytics.ts',
+        command === 'grounding'
+          ? 'test/grounding.database.ts'
+          : command === 'runbooks'
+            ? 'test/runbook'
+            : command === 'hardening'
+              ? 'test/hardening.database.ts'
+              : command === 'status'
+                ? 'test/workflow-status.database.ts'
+                : command === 'membership'
+                  ? 'test/membership.database.ts'
+                  : command === 'test'
+                    ? 'test/analytics.database.ts'
+                    : 'test/analytics.explain.ts',
       ];
 if (
   ![
@@ -59,10 +63,11 @@ if (
     'status',
     'hardening',
     'runbooks',
+    'grounding',
   ].includes(command)
 )
   throw new Error(
-    'Expected migrate, test, explain, membership, status, hardening, or runbooks',
+    'Expected migrate, test, explain, membership, status, hardening, runbooks, or grounding',
   );
 const result = spawnSync(process.execPath, args, {
   cwd: apiRoot,

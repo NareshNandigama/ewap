@@ -1,5 +1,5 @@
 {
-  "scope": "Five development fixtures; manually assigned 768D vectors; not real model quality, held-out evaluation, network latency, or production performance.",
+  "scope": "Five development and three frozen held-out fixtures; manually assigned 768D vectors; not real model quality, real-provider held-out evaluation, network latency, or production performance.",
   "corpus": [
     {
       "sourceKey": "timeout",
@@ -20,54 +20,90 @@
   "measurements": [
     {
       "mode": "keyword",
-      "recallAt3": 0.6,
-      "mrrAt3": 0.6,
+      "recallAt3": 0.625,
+      "mrrAt3": 0.625,
       "cases": [
         {
           "query": "connection timeout",
+          "split": "development",
           "expected": "timeout",
           "returned": [
             "timeout"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 11.631
+          "elapsedMs": 11.846
         },
         {
           "query": "database pool",
+          "split": "development",
           "expected": "pool",
           "returned": [
             "pool"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 9.681
+          "elapsedMs": 10.377
         },
         {
           "query": "JWT token expired",
+          "split": "development",
           "expected": "auth",
           "returned": [
             "auth"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 8.187
+          "elapsedMs": 8.341
         },
         {
           "query": "network stall",
+          "split": "development",
           "expected": "timeout",
           "returned": [],
           "reciprocalRank": 0,
           "hit": 0,
-          "elapsedMs": 7.953
+          "elapsedMs": 7.789
         },
         {
           "query": "session saturation",
+          "split": "development",
           "expected": "pool",
           "returned": [],
           "reciprocalRank": 0,
           "hit": 0,
-          "elapsedMs": 7.56
+          "elapsedMs": 7.99
+        },
+        {
+          "query": "worker network reachability",
+          "split": "heldout",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.788
+        },
+        {
+          "query": "active sessions",
+          "split": "heldout",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 8.557
+        },
+        {
+          "query": "expired credentials",
+          "split": "heldout",
+          "expected": "auth",
+          "returned": [],
+          "reciprocalRank": 0,
+          "hit": 0,
+          "elapsedMs": 7.721
         }
       ]
     },
@@ -78,53 +114,91 @@
       "cases": [
         {
           "query": "connection timeout",
+          "split": "development",
           "expected": "timeout",
           "returned": [
             "timeout"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 8.207
+          "elapsedMs": 8.399
         },
         {
           "query": "database pool",
+          "split": "development",
           "expected": "pool",
           "returned": [
             "pool"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 8.08
+          "elapsedMs": 8.58
         },
         {
           "query": "JWT token expired",
+          "split": "development",
           "expected": "auth",
           "returned": [
             "auth"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.926
+          "elapsedMs": 9.401
         },
         {
           "query": "network stall",
+          "split": "development",
           "expected": "timeout",
           "returned": [
             "timeout"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.321
+          "elapsedMs": 9.927
         },
         {
           "query": "session saturation",
+          "split": "development",
           "expected": "pool",
           "returned": [
             "pool"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.453
+          "elapsedMs": 10.421
+        },
+        {
+          "query": "worker network reachability",
+          "split": "heldout",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 10.656
+        },
+        {
+          "query": "active sessions",
+          "split": "heldout",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 10.459
+        },
+        {
+          "query": "expired credentials",
+          "split": "heldout",
+          "expected": "auth",
+          "returned": [
+            "auth"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 11.697
         }
       ]
     },
@@ -135,53 +209,91 @@
       "cases": [
         {
           "query": "connection timeout",
+          "split": "development",
           "expected": "timeout",
           "returned": [
             "timeout"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.883
+          "elapsedMs": 8.921
         },
         {
           "query": "database pool",
+          "split": "development",
           "expected": "pool",
           "returned": [
             "pool"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.79
+          "elapsedMs": 11.335
         },
         {
           "query": "JWT token expired",
+          "split": "development",
           "expected": "auth",
           "returned": [
             "auth"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 8.769
+          "elapsedMs": 12.756
         },
         {
           "query": "network stall",
+          "split": "development",
           "expected": "timeout",
           "returned": [
             "timeout"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.522
+          "elapsedMs": 12.004
         },
         {
           "query": "session saturation",
+          "split": "development",
           "expected": "pool",
           "returned": [
             "pool"
           ],
           "reciprocalRank": 1,
           "hit": 1,
-          "elapsedMs": 7.764
+          "elapsedMs": 11.521
+        },
+        {
+          "query": "worker network reachability",
+          "split": "heldout",
+          "expected": "timeout",
+          "returned": [
+            "timeout"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.496
+        },
+        {
+          "query": "active sessions",
+          "split": "heldout",
+          "expected": "pool",
+          "returned": [
+            "pool"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.718
+        },
+        {
+          "query": "expired credentials",
+          "split": "heldout",
+          "expected": "auth",
+          "returned": [
+            "auth"
+          ],
+          "reciprocalRank": 1,
+          "hit": 1,
+          "elapsedMs": 7.002
         }
       ]
     }

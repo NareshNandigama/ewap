@@ -322,7 +322,9 @@ structured hypotheses; see the service README for limits and configuration.
 Tenant-scoped runbook ingestion is documented in
 [runbook ingestion](docs/runbook-ingestion.md). Authorized keyword/vector/hybrid
 [runbook retrieval](docs/runbook-retrieval.md) is available; combining passages
-with diagnostic answers is the next phase.
+with diagnostic answers is available through the opt-in
+[grounded diagnostic path](docs/grounded-diagnostics.md). Offline evaluation passes;
+live model acceptance remains pending after an HTTP 429 provider response.
 Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 An isolated Python Docker setup and live NestJS-to-Python verification command

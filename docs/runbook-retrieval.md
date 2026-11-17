@@ -2,7 +2,7 @@
 
 Task 4 phase 3 adds PostgreSQL full-text, pgvector cosine, and hybrid passage
 retrieval. NestJS retains all database/tenant authorization. Retrieved passages
-are not yet added to Python diagnostic prompts; that is phase 4.
+can be used through the opt-in [grounded diagnostics](grounded-diagnostics.md).
 
 | Method and path under `/api/v1` | Access and behavior |
 | --- | --- |
@@ -98,9 +98,9 @@ runs during ingestion/startup.
 ## Verification and measured comparison
 
 The checked-in [evaluation artifact](runbook-retrieval-evaluation.json) records
-five labeled development cases over three documents using manually assigned
-768-dimensional vectors. Keyword Recall@3/MRR@3 are 0.6/0.6; vector and hybrid
-are 1.0/1.0 on those fixtures. The two synonym cases deliberately have no lexical
+five labeled development and three frozen held-out cases over three documents using manually assigned
+768-dimensional vectors. Keyword Recall@3/MRR@3 are 0.6/0.6 on development, 2/3 on held-out, and
+0.625/0.625 combined; vector and hybrid are 1.0/1.0 on those fixtures. The two synonym cases deliberately have no lexical
 match. Measurements include local SQL/service time with a mocked embedding
 provider; they exclude real provider latency/cost. These small synthetic results
 verify ranking plumbing and are not evidence of real semantic quality, production
