@@ -1,3 +1,4 @@
+import { RateLimitModule } from '../rate-limit/rate-limit.module.js';
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -17,6 +18,7 @@ import { AuthModule } from '../auth/auth.module.js';
 
 @Module({
   imports: [
+    RateLimitModule,
     ConfigModule,
     WorkflowRunModule,
     PrismaModule,

@@ -34,6 +34,7 @@ export const environmentSchema = Joi.object({
   FRONTEND_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })
     .required(),
+  RATE_LIMIT_ENABLED: Joi.boolean().default(true),
   REDIS_URL: Joi.string().optional(),
   AI_DIAGNOSTICS_URL: Joi.string()
     .uri({ scheme: ['http', 'https'] })

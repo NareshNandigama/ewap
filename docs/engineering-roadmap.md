@@ -41,7 +41,7 @@ their original meaning; completed feature work is not being relabeled.
 | 1.2 Secure NestJS integration | Complete | Service authentication, authorized evidence mapping, deadline, validation, TypeScript fallback; 45 Python and 60 targeted API tests pass |
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
-| 3 Redis rate limiting | Pending | Registration/login/AI limits, tenant awareness, atomic concurrency behavior, 429/Retry-After, failure tests |
+| 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
 | 4 Python LangGraph / LLM diagnostics and RAG | Pending | Actual model calls, grounded structured findings, tenant-scoped runbook retrieval, evaluation and operational controls |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
@@ -468,3 +468,26 @@ Implement one phase at a time. Preserve tenant isolation and existing changes.
 Never delete database data or rewrite historical Prisma migrations. Explain
 trade-offs and record actual test results. Commit, push, deploy, and paid cloud
 actions require explicit user approval.
+
+
+## Task 3 verification
+
+Verified November 17, 2026. Redis Lua counters implement shared fixed windows
+for registration/login/demo, account login, and tenant/user AI quotas. All AI
+model entry points, including integration diagnosis and streaming, are guarded
+before controller work. JWT authorization precedes AI quota identity selection.
+Redis outages fail closed with 503; explicit local opt-out is documented in
+[rate limiting](rate-limiting.md). No production deployment was performed.
+
+- API build and lint passed.
+- Targeted Redis, rate-limit, auth-controller, and AI-controller tests: 15 passed
+  across six files, including real HTTP/JWT enforcement and real Redis 7.
+- 100 concurrent requests across two RedisService instances admitted exactly 10
+  requests for a quota of 10; expiry, independent keys, and disconnected-store
+  failure passed. HTTP tests confirmed rejection before registration/provider work.
+- Existing unrelated database/Python fixtures explicitly disable quotas to keep
+  their original scope; those database/live-Python suites were not rerun here.
+- The isolated Redis container was stopped after verification. No real model
+  requests, production database changes, or cloud resources were involved.
+
+Next pending feature: Task 4, phase 1 Python model/LangGraph orchestration.

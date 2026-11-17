@@ -1,3 +1,4 @@
+import { RateLimitModule } from '../rate-limit/rate-limit.module.js';
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { PrismaModule } from '../prisma/prisma.module.js';
@@ -8,7 +9,7 @@ import { IntegrationEventsService } from './integration-events.service.js';
 import { IntegrationDiagnosticAgentService } from './integration-diagnostic-agent.service.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, AiModule, RedisModule],
+  imports: [RateLimitModule, PrismaModule, AuthModule, AiModule, RedisModule],
   controllers: [IntegrationEventsController],
   providers: [IntegrationEventsService, IntegrationDiagnosticAgentService],
 })

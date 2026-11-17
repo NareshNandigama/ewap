@@ -30,6 +30,7 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         lazyConnect: true,
         enableOfflineQueue: false,
         maxRetriesPerRequest: 3,
+        commandTimeout: 1000,
         retryStrategy: (times: number) => Math.min(times * 50, 2000),
       });
 
@@ -66,6 +67,37 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
 
   isAvailable(): boolean {
     return Boolean(this.client && this.client.status === 'ready');
+  }
+
+  async consumeRateLimit(
+    key: string,
+    limit: number,
+    windowMs: number,
+  ): Promise<number> {
+    // Security quotas must never inherit optional cache fail-open semantics.
+    if (!this.client || this.client.status !== 'ready') {
+      throw new Error('Rate limit store unavailable');
+    }
+    const result = await this.client.eval(
+      `
+      local count = redis.call('INCR', KEYS[1])
+      if count == 1 then redis.call('PEXPIRE', KEYS[1], ARGV[2]) end
+      local ttl = redis.call('PTTL', KEYS[1])
+      if ttl < 0 then
+        redis.call('PEXPIRE', KEYS[1], ARGV[2])
+        ttl = tonumber(ARGV[2])
+      end
+      if count > tonumber(ARGV[1]) then return math.max(1, ttl) end
+      return 0
+    `,
+      1,
+      key,
+      limit,
+      windowMs,
+    );
+    if (typeof result !== 'number' || result < 0)
+      throw new Error('Invalid quota result');
+    return result;
   }
 
   async ping(): Promise<boolean> {

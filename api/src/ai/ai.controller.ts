@@ -1,3 +1,4 @@
+import { RateLimitGuard } from '../rate-limit/rate-limit.guard.js';
 import {
   Body,
   Controller,
@@ -55,6 +56,7 @@ export class AiController {
 
   // Optional Python diagnostics with the existing TypeScript graph as fallback.
   @Post('agent/diagnose')
+  @UseGuards(RateLimitGuard)
   async diagnose(@Body() dto: AskAiDto, @CurrentUser() user: JwtPayload) {
     return this.workflowDiagnostics.diagnose(
       dto.question,
@@ -64,6 +66,7 @@ export class AiController {
   }
 
   @Post('ask')
+  @UseGuards(RateLimitGuard)
   async ask(@Body() dto: AskAiDto, @CurrentUser() user: JwtPayload) {
     return this.aiService.ask(
       dto.question,
@@ -75,6 +78,7 @@ export class AiController {
   }
 
   @Post('ask/stream')
+  @UseGuards(RateLimitGuard)
   @HttpCode(200)
   async askStream(
     @Body() dto: AskAiDto,

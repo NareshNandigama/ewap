@@ -79,6 +79,7 @@ describe('Live Python diagnostics boundary (fixture database/model)', () => {
         {
           provide: ConfigService,
           useValue: new ConfigService({
+            RATE_LIMIT_ENABLED: false,
             AI_DIAGNOSTICS_URL: pythonUrl,
             AI_SERVICE_API_KEY: serviceKey,
             AI_DIAGNOSTICS_TIMEOUT_MS: 3000,
@@ -194,6 +195,7 @@ describe('Live Python diagnostics boundary (fixture database/model)', () => {
     const runs = app.get(WorkflowRunService);
     const wrongKeyClient = new PythonDiagnosticsClient(
       new ConfigService({
+        RATE_LIMIT_ENABLED: false,
         AI_DIAGNOSTICS_URL: pythonUrl,
         AI_SERVICE_API_KEY: 'deliberately-wrong-' + 'x'.repeat(32),
       }),

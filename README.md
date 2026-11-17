@@ -19,6 +19,7 @@ analyze execution status and failures.
 - Workflow creation and management
 - Workflow execution history
 - Workflow run status tracking
+- Shared Redis rate limits for authentication and tenant/user AI requests
 - JWT authentication
 - Role-based authorization with ADMIN and MEMBER roles
 - Guest access for the public demo
@@ -333,6 +334,9 @@ Clone the repository and install the frontend and backend dependencies.
 Environment-specific configuration such as database credentials, JWT
 configuration, messaging configuration, frontend URL, and AI provider
 credentials should be supplied through environment variables.
+
+Quota defaults, Redis outage behavior, and local verification are documented in
+[rate limiting](docs/rate-limiting.md).
 
 API environment requirements and the isolated Docker startup check are documented
 in [API configuration](docs/api-configuration.md).

@@ -1,3 +1,4 @@
+import { RateLimitModule } from '../rate-limit/rate-limit.module.js';
 import { Module } from '@nestjs/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
@@ -8,6 +9,7 @@ import { AuthService } from './auth.service.js';
 
 @Module({
   imports: [
+    RateLimitModule,
     PrismaModule,
     JwtModule.registerAsync({
       inject: [ConfigService],

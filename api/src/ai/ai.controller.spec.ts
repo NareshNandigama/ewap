@@ -1,3 +1,4 @@
+import { RateLimitGuard } from '../rate-limit/rate-limit.guard.js';
 import { Test, TestingModule } from '@nestjs/testing';
 import { AiController } from './ai.controller.js';
 import { JwtService } from '@nestjs/jwt';
@@ -19,7 +20,10 @@ describe('AiController', () => {
         { provide: WorkflowDiagnosticsService, useValue: diagnostics },
         { provide: JwtService, useValue: {} },
       ],
-    }).compile();
+    })
+      .overrideGuard(RateLimitGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<AiController>(AiController);
   });

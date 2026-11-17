@@ -89,6 +89,7 @@ describe('Workflow status trust boundaries (PostgreSQL and live sockets)', () =>
             ignoreEnvFile: true,
             load: [
               () => ({
+                RATE_LIMIT_ENABLED: false,
                 JWT_SECRET: jwtKey,
                 WORKER_STATUS_API_KEY: key,
                 ENABLE_MESSAGING: false,

@@ -57,7 +57,12 @@ describe('Tenant membership boundaries (real PostgreSQL)', () => {
         ConfigModule.forRoot({
           isGlobal: true,
           ignoreEnvFile: true,
-          load: [() => ({ JWT_SECRET: randomBytes(32).toString('hex') })],
+          load: [
+            () => ({
+              RATE_LIMIT_ENABLED: false,
+              JWT_SECRET: randomBytes(32).toString('hex'),
+            }),
+          ],
         }),
         AuthModule,
         UserModule,
