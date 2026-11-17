@@ -64,8 +64,21 @@ class RootCauseAssessment(Contract):
     explanation: str
 
 
+class ModelFinding(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    hypothesis: Annotated[str, StringConstraints(strict=True, strip_whitespace=True, min_length=1, max_length=1000)]
+    log_id: Identifier
+    quote: Annotated[str, StringConstraints(strict=True, strip_whitespace=True, min_length=1, max_length=500)]
+
+
+class ModelUsage(Contract):
+    model: Identifier
+    input_tokens: int = Field(ge=0, strict=True)
+    output_tokens: int = Field(ge=0, strict=True)
+
+
 class DiagnosticResponse(Contract):
-    analysis_mode: Literal["deterministic"] = "deterministic"
+    analysis_mode: Literal["deterministic", "llm"] = "deterministic"
     organization_id: Identifier
     workflow_run_id: Identifier
     execution_status: RunStatus
@@ -74,9 +87,11 @@ class DiagnosticResponse(Contract):
     root_cause: RootCauseAssessment
     limitations: list[str]
     next_steps: list[str]
+    findings: list[ModelFinding] | None = None
+    usage: ModelUsage | None = None
 
 
 class HealthResponse(Contract):
     status: Literal["ok"] = "ok"
     service: Literal["ewap-ai-service"] = "ewap-ai-service"
-    analysis_mode: Literal["deterministic"] = "deterministic"
+    analysis_mode: Literal["deterministic", "llm"] = "deterministic"

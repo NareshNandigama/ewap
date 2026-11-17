@@ -316,7 +316,9 @@ ewap/
 The Python diagnostics service has independent setup and test instructions
 in [ai-service/README.md](ai-service/README.md). It provides rule-based reports
 with optional authenticated NestJS integration and TypeScript fallback. Python
-does not call an LLM yet. Implementation status and the
+defaults to deterministic analysis and now supports opt-in LangGraph/OpenAI
+structured hypotheses; see the service README for limits and configuration.
+Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 An isolated Python Docker setup and live NestJS-to-Python verification command
 are documented in the service README; the full-stack Compose work is a later task.

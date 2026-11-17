@@ -71,6 +71,36 @@ describe('PythonDiagnosticsClient', () => {
     });
   });
 
+  it('accepts model hypotheses only with validated citations and usage', async () => {
+    const modelReport = {
+      ...report,
+      analysisMode: 'llm',
+      findings: [
+        { hypothesis: 'Possible timeout', log_id: 'log-1', quote: 'timed out' },
+      ],
+      usage: { model: 'test-model', inputTokens: 100, outputTokens: 20 },
+    };
+    fetchMock.mockResolvedValue(Response.json(modelReport));
+    await expect(request()).resolves.toEqual(modelReport);
+    for (const invalid of [
+      {
+        ...modelReport,
+        findings: [{ ...modelReport.findings[0], log_id: 'foreign' }],
+      },
+      {
+        ...modelReport,
+        findings: [{ ...modelReport.findings[0], quote: 'invented' }],
+      },
+      { ...modelReport, usage: { ...modelReport.usage, inputTokens: -1 } },
+      { ...modelReport, analysisMode: 'deterministic' },
+    ]) {
+      fetchMock.mockResolvedValue(Response.json(invalid));
+      await expect(request()).rejects.toMatchObject({
+        reason: 'invalid_response',
+      });
+    }
+  });
+
   it('maps cached timestamps, omits private fields, and bounds logs/messages', async () => {
     const evidence = {
       ...run,

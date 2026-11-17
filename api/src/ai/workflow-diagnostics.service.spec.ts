@@ -87,6 +87,23 @@ describe('Workflow diagnostics integration', () => {
     expect(llm.generate).not.toHaveBeenCalled();
   });
 
+  it('labels Python model responses and avoids a duplicate TypeScript model call', async () => {
+    const { service, fetchMock, llm } = setup();
+    fetchMock.mockResolvedValue(
+      Response.json({
+        ...report,
+        analysisMode: 'llm',
+        findings: [],
+        usage: { model: 'test-model', inputTokens: 100, outputTokens: 20 },
+      }),
+    );
+    const result = await service.diagnose('What failed?', 'run-1', 'org-1');
+    expect(result.source).toBe('python-llm');
+    expect(result.answer).toContain('unverified hypotheses');
+    expect(result.answer).not.toContain('no LLM call');
+    expect(llm.generate).not.toHaveBeenCalled();
+  });
+
   it('rejects another tenant before any external diagnostic request', async () => {
     const { service, fetchMock, llm } = setup();
     await expect(

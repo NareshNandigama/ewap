@@ -7,10 +7,13 @@ from fastapi.responses import JSONResponse
 from .routes import diagnostics, health
 from .body_limit import DiagnosticBodyLimit
 from .security import service_auth
+from .model_diagnostics import ModelDiagnostics, ModelSettings
 
 
-def create_app() -> FastAPI:
+def create_app(model_diagnostics=None) -> FastAPI:
     app = FastAPI(title="EWAP AI Diagnostics", version="0.1.0")
+    settings = ModelSettings.from_env()
+    app.state.model_diagnostics = model_diagnostics or (ModelDiagnostics(settings) if settings.mode == "llm" else None)
     authenticate = service_auth(os.environ.get("AI_SERVICE_API_KEY"))
     app.add_middleware(DiagnosticBodyLimit)
 

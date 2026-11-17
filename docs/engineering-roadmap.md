@@ -42,7 +42,7 @@ their original meaning; completed feature work is not being relabeled.
 | 1.3 Docker and local verification | Complete | Python 3.12 Docker image healthy; 5 live NestJS-to-Python checks pass, plus regression tests |
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
-| 4 Python LangGraph / LLM diagnostics and RAG | Pending | Actual model calls, grounded structured findings, tenant-scoped runbook retrieval, evaluation and operational controls |
+| 4 Python LangGraph / LLM diagnostics and RAG | Phase 1 complete locally; phases 2–5 pending | Opt-in OpenAI/LangGraph hypotheses, citation validation, deadlines/retries/cancellation; retrieval and evaluation remain pending |
 | 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
@@ -51,10 +51,11 @@ their original meaning; completed feature work is not being relabeled.
 Existing SQL indexes, Docker files, or TypeScript LangGraph do not imply that
 the corresponding expanded roadmap task is complete.
 
-### Task 4 implementation phases (all pending)
+### Task 4 implementation phases
 
-1. Actual Python model calls and LangGraph diagnostic orchestration with Pydantic
-   structured findings, timeouts, bounded retries, and cancellation.
+1. **Complete locally, not deployed:** Python model calls and LangGraph diagnostic
+   orchestration with Pydantic structured hypotheses, timeouts, bounded retries,
+   cancellation, and checked citation membership. Real provider quality is unverified.
 2. RAG ingestion: tenant-owned runbooks, source/version/access metadata, content
    hashes, chunking, replacement/deletion, and retry-safe indexing.
 3. Authorized retrieval using PostgreSQL/pgvector as the initial store. Compare
@@ -67,7 +68,7 @@ the corresponding expanded roadmap task is complete.
    tenant isolation, injection, missing/conflicting sources, latency, and cost.
 
 Existing knowledge/vector schema fields are groundwork, not a verified RAG
-pipeline. The deterministic Python service remains operational while these phases
+pipeline. The deterministic Python service remains the default while these phases
 are introduced. NestJS retains authorized database access; Python receives scoped
 run/retrieval evidence through explicit API/tool contracts. No new database, MCP,
 or multi-agent requirement is implied.
@@ -491,3 +492,43 @@ Redis outages fail closed with 503; explicit local opt-out is documented in
   requests, production database changes, or cloud resources were involved.
 
 Next pending feature: Task 4, phase 1 Python model/LangGraph orchestration.
+
+
+## Task 4 phase 1 verification
+
+Verified November 17, 2026. Python now offers an opt-in, stateless LangGraph
+analyze/validate pipeline calling OpenAI Chat Completions with strict JSON schema.
+Deterministic mode remains the default. NestJS validates model-mode reports and
+labels them `python-llm`; authorized evidence lookup remains its responsibility.
+
+The model produces unverified hypotheses with exact log quotes. Python and
+NestJS check citation membership; this does not establish causal support or
+complete the grounded-answer evaluation phase. Status and root-cause assessment
+remain rule controlled. The service has no retrieval, database access, tools,
+checkpoint persistence, or graph tracing.
+
+Bounds: latest 20 supplied logs, five findings, 1,600 completion tokens per attempt,
+64 KiB provider envelope, four per-process active graphs, one total deadline
+including queue time, at most two attempts for selected transient HTTP responses.
+Disconnect/deadline cancellation closes HTTP work. Usage reports the successful
+call only. The existing TypeScript fallback can add latency and cost; see
+[service configuration](../ai-service/README.md#task-4-phase-1-opt-in-model-diagnostics).
+
+Validation:
+
+- Host Python 3.14: 70 tests passed, including real graph execution with HTTPX
+  mock transport, HTTP authentication/sanitized errors, ASGI disconnect,
+  deadline/retry/concurrency bounds, citation rejection, and tenant isolation.
+- Targeted API tests: 48 passed across three files; Node 24 build and lint passed.
+- Python 3.12 Docker suite: all 70 tests passed against the pinned image runtime
+  and final mounted source. Updated image built and became healthy.
+- Python source distribution and wheel built successfully; pip check passed.
+- Existing live NestJS-to-Python HTTP/JWT/fallback checks: five passed against
+  the updated deterministic-mode container; container/network stopped afterward.
+- No paid provider requests, production deployment, database changes, or cloud
+  resources. Model-answer quality, semantic support, prompt-injection resistance,
+  and billing accuracy remain unverified. LangSmith emits a Python 3.14 deprecation
+  warning in tests; no test failures result.
+
+Next: Task 4 phase 2, tenant-owned runbook ingestion and version/access metadata.
+Task 4 as a whole remains incomplete until its remaining phases are verified.

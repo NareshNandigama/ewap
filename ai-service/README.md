@@ -1,14 +1,15 @@
 # EWAP Python Diagnostics Service
 
 Task 1, Phases 1–3: a standalone FastAPI application with Pydantic v2 contracts,
-service authentication, NestJS integration, and verified local Docker execution. **Python diagnostics are still
-deterministic; Python makes no LLM calls.**
+service authentication, NestJS integration, and verified local Docker execution. Task 4 phase 1 adds opt-in Python model analysis through LangGraph.
+Deterministic analysis remains the default.
 
 ## Boundary
 
 NestJS owns authentication, organization authorization, database reads,
 conversations, and caching. This service owns diagnostic computation over an
-explicit evidence snapshot. It has no database, Redis, or provider credentials.
+explicit evidence snapshot. It has no database or Redis access. Model mode uses a separately configured
+OpenAI credential.
 The existing `POST /api/v1/ai/agent/diagnose` endpoint can now call Python when
 configured. Other AI/chat/streaming and integration-event routes are unchanged.
 
@@ -158,7 +159,7 @@ and [Pydantic model validation](https://docs.pydantic.dev/latest/concepts/models
 
 Task 1, Phase 3 adds the Docker image and isolated local verification described below.
 
-Python LangGraph, real model calls, evaluations, observability, risk/cost controls,
+RAG, held-out evaluations, observability, additional risk/cost controls,
 and approved cloud deployment follow in their roadmap phases. MCP and multiple
 agents are optional design decisions, not Phase 1 dependencies.
 
@@ -229,3 +230,73 @@ docker compose --env-file ai-service/.env.local -f compose.ai-local.yml down
 
 This isolated project declares no database volumes. The command stops its AI
 container/network; it does not delete EWAP database data or other Compose stacks.
+
+
+## Task 4 phase 1: opt-in model diagnostics
+
+Set these **Python service** environment variables to enable model analysis:
+
+```dotenv
+AI_ANALYSIS_MODE=llm
+OPENAI_API_KEY=<separate-provider-secret>
+AI_MODEL=<model-supporting-chat-completions-strict-json-schema>
+AI_MODEL_DEADLINE_SECONDS=15
+AI_MODEL_MAX_ATTEMPTS=2
+```
+
+`AI_ANALYSIS_MODE=deterministic` is the default and requires no provider key.
+Invalid modes/bounds or missing model credentials fail startup in LLM mode.
+Python reads environment variables directly; it does not load `.env` files.
+The existing local Compose configuration deliberately runs deterministic mode;
+use an explicit local Compose override to pass model variables if enabling it.
+Do not commit provider credentials. The provider is called only on authenticated
+diagnostic requests; startup/health never call it.
+
+The LangGraph sequence is analyze → validate. It calls OpenAI Chat Completions
+with strict JSON schema, no tools, `store: false`, and a 1,600 completion-token
+cap. The latest 20 supplied logs (timestamp, then ID) plus the bounded question
+and status are sent; tenant/run identifiers are excluded. Log IDs are retained
+for citations. Redact sensitive log content before submitting it: this mode
+sends evidence to an external provider. No runbooks, vectors, or retrieval are
+implemented yet. Tracing is disabled explicitly for this graph, including when
+LangSmith tracing variables are set. No checkpoint/history is retained.
+
+Up to five findings contain `hypothesis`, `log_id`, and `quote`. Both Python
+and NestJS reject absent log IDs and quotes not present verbatim in supplied
+logs. These checks establish citation membership, **not causal support**.
+Hypotheses remain explicitly unverified; root cause remains undetermined for
+failed/cancelled runs. Execution status and the baseline summary/next steps
+remain rule controlled. Empty findings represent insufficient model evidence.
+Prompt instructions treat the question/logs as untrusted data, but this is not
+proof of prompt-injection resistance or answer quality; held-out evaluation is
+Task 4 phase 5.
+
+Responses identify `analysisMode: "llm"` and include findings plus `usage` with
+configured model, inputTokens, and outputTokens for the successful call. NestJS
+returns `source: "python-llm"` and labels the answer as unverified hypotheses.
+Deterministic response fields remain compatible. Usage is not billing accounting:
+unsuccessful/retried calls may incur costs not reported by a successful response.
+
+The total graph deadline includes waiting for one of four per-process provider
+slots, HTTP work, retries, and validation. It defaults to 15 seconds and accepts
+0.1–25 seconds. At most two attempts are allowed; only 429 and transient
+500/502/503/504 responses retry, with short bounded backoff. No SDK retries or
+redirects occur. Network errors, invalid JSON/schema/citations, refusal, and
+truncated outputs fail without retry. Provider envelopes are capped at 64 KiB.
+Cancellation/disconnect cancels graph/HTTP work and closes the connection; a
+provider may still charge for work already accepted. Provider failures return
+sanitized 503 errors. Logs do not record provider bodies or evidence.
+
+Set NestJS `AI_DIAGNOSTICS_TIMEOUT_MS=20000` when using the default 15-second
+Python deadline; its existing 3-second default is intended for deterministic
+analysis and would abort most model requests. Python failure still activates
+the existing TypeScript fallback, which can incur another model call. The Python
+deadline does not cover that fallback. API tenant/user request quotas apply;
+per-process slots are not distributed concurrency or token/cost budgets.
+
+References: [LangGraph StateGraph](https://reference.langchain.com/python/langgraph/graph/state/StateGraph)
+and [OpenAI structured outputs](https://developers.openai.com/api/docs/guides/structured-outputs?api-mode=chat).
+
+Phase 1 verification uses HTTPX mock transport through the actual graph and HTTP
+route. No paid provider requests were made; real provider/model quality and
+production behavior are not claimed verified.

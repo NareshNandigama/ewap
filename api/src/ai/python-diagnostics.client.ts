@@ -17,7 +17,9 @@ export interface DiagnosticLog {
 }
 
 export interface PythonDiagnosticReport {
-  analysisMode: 'deterministic';
+  analysisMode: 'deterministic' | 'llm';
+  findings?: { hypothesis: string; log_id: string; quote: string }[];
+  usage?: { model: string; inputTokens: number; outputTokens: number };
   organizationId: string;
   workflowRunId: string;
   executionStatus: string;
@@ -37,7 +39,21 @@ const logSchema = Joi.object({
 }).unknown(false);
 
 const responseSchema = Joi.object({
-  analysisMode: Joi.string().valid('deterministic').required(),
+  analysisMode: Joi.string().valid('deterministic', 'llm').required(),
+  findings: Joi.array()
+    .items(
+      Joi.object({
+        hypothesis: Joi.string().min(1).max(1000).required(),
+        log_id: Joi.string().min(1).max(200).required(),
+        quote: Joi.string().min(1).max(500).required(),
+      }).unknown(false),
+    )
+    .max(5),
+  usage: Joi.object({
+    model: Joi.string().min(1).max(200).required(),
+    inputTokens: Joi.number().integer().min(0).required(),
+    outputTokens: Joi.number().integer().min(0).required(),
+  }).unknown(false),
   organizationId: Joi.string().min(1).max(200).required(),
   workflowRunId: Joi.string().min(1).max(200).required(),
   executionStatus: Joi.string()
@@ -189,6 +205,18 @@ export class PythonDiagnosticsClient {
         ? 'undetermined'
         : 'not_applicable';
       if (
+        (report.analysisMode === 'llm' &&
+          (!report.findings || !report.usage)) ||
+        (report.analysisMode === 'deterministic' &&
+          (report.findings !== undefined || report.usage !== undefined)) ||
+        report.findings?.some(
+          (finding) =>
+            !logs.some(
+              (log) =>
+                log.id === finding.log_id &&
+                log.message.includes(finding.quote),
+            ),
+        ) ||
         report.organizationId !== organizationId ||
         report.workflowRunId !== run.id ||
         report.executionStatus !== run.status ||

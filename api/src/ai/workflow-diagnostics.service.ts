@@ -51,16 +51,29 @@ export class WorkflowDiagnosticsService {
           'Snapshot includes at most the latest 100 logs; messages are limited to 2000 characters.',
         );
         const answer = [
-          '[Deterministic analysis — no LLM call]',
+          diagnostics.analysisMode === 'llm'
+            ? '[Model analysis — unverified hypotheses]'
+            : '[Deterministic analysis — no LLM call]',
           diagnostics.summary,
           `Root cause: ${diagnostics.rootCause.explanation}`,
           ...diagnostics.evidence.map(
             (log) => `Evidence ${log.id}: ${log.message}`,
           ),
+          ...(diagnostics.findings ?? []).map(
+            (f) =>
+              `Hypothesis (unverified): ${f.hypothesis} [${f.log_id}: ${f.quote}]`,
+          ),
           ...diagnostics.nextSteps.map((step) => `Next step: ${step}`),
           ...diagnostics.limitations.map((item) => `Limitation: ${item}`),
         ].join('\n');
-        return { answer, source: 'python-deterministic' as const, diagnostics };
+        return {
+          answer,
+          source:
+            diagnostics.analysisMode === 'llm'
+              ? ('python-llm' as const)
+              : ('python-deterministic' as const),
+          diagnostics,
+        };
       } catch (error) {
         const reason =
           error instanceof PythonDiagnosticsFailure
