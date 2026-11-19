@@ -218,9 +218,9 @@ deliberately not included in the default unit suite.
 
 For the normal host API (rather than the fixture test), add the same key plus
 `AI_DIAGNOSTICS_URL=http://127.0.0.1:18001` to its environment. Existing database,
-JWT, and provider configuration remain necessary. The complete Compose stack
-with the API/database/worker/frontend is roadmap Task 5; `api/docker-compose.yml`
-has not been altered.
+JWT, and provider configuration remain necessary. The complete API/database/worker/frontend local stack is documented in
+[full-stack Compose](../docs/local-stack.md). This separate AI-only project
+remains available; `api/docker-compose.yml` is the older partial configuration.
 
 After verification, from the repository root:
 

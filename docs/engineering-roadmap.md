@@ -43,7 +43,7 @@ their original meaning; completed feature work is not being relabeled.
 | 2 Advanced PostgreSQL | Complete | Four JWT/tenant-scoped endpoints, CTEs/LATERAL/window SQL, additive indexes, PostgreSQL correctness tests and measured EXPLAIN evidence |
 | 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
 | 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–4 complete locally; phase 5 offline gates pass, live acceptance pending (provider HTTP 429) | Grounded extraction and evaluation runners implemented; real-model quality/latency/cost acceptance remains open |
-| 5 Complete Compose / Azure deployment | Pending | Full stack, HTTPS, persistent storage, backups, secrets, CI/CD; paid provisioning requires approval |
+| 5 Complete Compose / Azure deployment | Local Compose phase complete; Azure/public deployment pending | Verified full stack, internal TLS, persistent volumes, secrets, smoke and logical restore checks; cloud provisioning/CI/CD remain pending |
 | 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
 | 8 Snowflake learning component | Pending | Separate ingestion, views, CTE/window queries, Dynamic Tables, Cortex Analyst model |
@@ -659,3 +659,46 @@ Validation:
 
 Next required acceptance work: resolve the provider's 429 response and run the
 frozen live evaluations. Task 5 deployment is not started by this work.
+
+
+## Task 5 local Compose phase
+
+Verified November 19, 2026. Added the isolated `compose.local.yml` stack with
+frontend, API, PostgreSQL/pgvector, RabbitMQ, Redis, worker, deterministic Python,
+and loopback HTTP/HTTPS gateway. Node images use Node 24; application runtimes
+run as non-root. The API owns the migration job, and the worker build checks the
+canonical schema. A generated local CA preserves the existing database and
+service-client TLS verification policies. PostgreSQL network access is TLS-only.
+No production TLS exceptions or public cloud resources were introduced.
+
+The helper initializes ignored local secrets without rotating existing values,
+serializes builds to bound peak disk/memory, creates an optional local admin
+through normal registration, and supports safe stop/down, logical backup, and
+restore verification into a separate temporary database. Source, environment,
+and backup exclusions keep local data out of Git/build contexts. Details and
+commands are in [the local stack guide](local-stack.md).
+
+Validation:
+
+- All five application/build images built: API, migration tooling, worker,
+  frontend standalone output, and Python. Compose dependencies/health checks passed.
+- Live full-stack smoke passed: frontend HTTP and verified HTTPS gateway,
+  verified DB TLS and rejection of plaintext TCP, JWT registration/login,
+  idempotent run creation, RabbitMQ/worker completion, authenticated status socket,
+  deterministic Python over internal HTTPS, keyword runbooks, grounded abstention,
+  and cross-tenant run denial. No paid model calls were made.
+- API, worker, and web containers report UID 1000. Python retains its existing
+  non-root image user. Local init preserved secrets and mode 0600 on repeat.
+- A protected custom-format dump restored successfully into `ewap_restore_check`;
+  the restored database contained the completed run and all 18 migrations.
+  The temporary verification database was removed, leaving application data intact.
+- Syntax, formatting/diff, and canonical schema checks passed. Runtime persistence
+  was checked across a complete stop/start with retained volumes and certificates.
+- Initial verification hit host disk exhaustion. Only rebuildable caches and
+  generated web output were removed; Docker was recovered and the final images
+  were rebuilt. Database volumes and project source were preserved.
+
+This completes only Task 5's local phase. Azure/public HTTPS, CI/CD deployment,
+managed secret delivery/rotation, off-site/PITR backups, resource sizing, and
+production operations remain pending. Task 4 real-provider acceptance is still
+separately pending its documented HTTP 429 blocker.

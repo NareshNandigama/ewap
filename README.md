@@ -328,7 +328,21 @@ live model acceptance remains pending after an HTTP 429 provider response.
 Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
 An isolated Python Docker setup and live NestJS-to-Python verification command
-are documented in the service README; the full-stack Compose work is a later task.
+are documented in the service README. The complete isolated local stack is
+available through [full-stack Compose](docs/local-stack.md).
+
+### Complete local stack
+
+```sh
+node scripts/local-stack.mjs init
+node scripts/local-stack.mjs up
+node scripts/local-stack.mjs account
+node scripts/local-stack.mjs smoke
+```
+
+Open `http://localhost:18080/login`; local login credentials are stored in the
+ignored `.env.stack-local`. See [local stack](docs/local-stack.md) for ports,
+TLS, persistence, backup/restore checks, and stopping the stack.
 
 ### Prerequisites
 

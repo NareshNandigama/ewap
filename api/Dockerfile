@@ -1,7 +1,7 @@
 # -----------------------------
 # Stage 1: Build
 # -----------------------------
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ RUN corepack enable
 
 COPY package.json yarn.lock ./
 
-RUN yarn install --frozen-lockfile
+RUN yarn install --frozen-lockfile && yarn cache clean
 
 COPY . .
 
@@ -23,7 +23,7 @@ RUN yarn build
 # -----------------------------
 # Stage 2: Production
 # -----------------------------
-FROM node:22-alpine AS production
+FROM node:24-alpine AS production
 
 WORKDIR /app
 
@@ -41,6 +41,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/src/generated ./src/generated
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
+
+USER node
 
 EXPOSE 3000
 
