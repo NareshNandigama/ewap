@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 from pathlib import Path
 
 import httpx
@@ -23,8 +24,9 @@ def test_frozen_split_contract_evaluation(split):
     assert len({case['id'] for case in CASES}) == len(CASES)
 
 
-def test_grounding_http_contract_and_provider_boundaries(monkeypatch):
+def test_grounding_http_contract_and_provider_boundaries(monkeypatch, caplog):
     monkeypatch.setenv('AI_SERVICE_API_KEY', 'a' * 32)
+    caplog.set_level(logging.INFO, logger='uvicorn.error.diagnostics')
     case = CASES[0]
     def handler(request):
         body = json.loads(request.content)
@@ -43,6 +45,22 @@ def test_grounding_http_contract_and_provider_boundaries(monkeypatch):
         assert report['grounding']['passages'][0]['version'] == 1
         assert report['findings'] == []
         assert report['rootCause']['status'] == 'undetermined'
+    events = [
+        json.loads(record.message)
+        for record in caplog.records
+        if record.name == 'uvicorn.error.diagnostics'
+    ]
+    assert len(events) == 1
+    event = events[0]
+    assert event.pop('durationMs') >= 0
+    assert event == {
+        'event': 'workflow_diagnostics',
+        'mode': 'llm',
+        'outcome': 'completed',
+        'groundingStatus': 'supported_observations',
+        'inputTokens': 100,
+        'outputTokens': 40,
+    }
 
 
 def test_deterministic_mode_abstains_with_context(monkeypatch):

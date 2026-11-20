@@ -106,7 +106,7 @@ def test_deadline_and_cancellation(payload):
     asyncio.run(scenario(True))
 
 
-def test_http_mode_and_sanitized_failure(payload, monkeypatch):
+def test_http_mode_and_sanitized_failure(payload, monkeypatch, caplog):
     monkeypatch.setenv("AI_SERVICE_API_KEY", "a" * 32)
     model = engine(lambda _: httpx.Response(401, text="secret provider error"))
     with TestClient(create_app(model)) as client:
@@ -114,6 +114,16 @@ def test_http_mode_and_sanitized_failure(payload, monkeypatch):
         assert response.status_code == 503
         assert response.json() == {"detail": "Model diagnostics unavailable"}
         assert client.get("/health").json()["analysisMode"] == "llm"
+    events = [json.loads(record.message) for record in caplog.records if record.name == "uvicorn.error.diagnostics"]
+    assert len(events) == 1
+    event = events[0]
+    assert event.pop("durationMs") >= 0
+    assert event == {
+        "event": "workflow_diagnostics",
+        "mode": "llm",
+        "outcome": "failed",
+        "reason": "provider_http_401",
+    }
 
 
 def test_no_evidence_injection_and_tenant_isolation(payload):

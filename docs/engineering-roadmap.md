@@ -660,6 +660,13 @@ Validation:
 Next required acceptance work: resolve the provider's 429 response and run the
 frozen live evaluations. Task 5 deployment is not started by this work.
 
+A November 20, 2026 recheck sent one bounded request for the synthetic
+`dev-observed` case and again received HTTP 429. The full development and
+held-out live suites remain pending. The Python endpoint now emits structured
+diagnostic outcome logs with elapsed time, sanitized failure reason, grounding
+status and successful-call token usage when present. Cloud collection and alerts
+remain pending.
+
 
 ## Task 5 local Compose phase
 
