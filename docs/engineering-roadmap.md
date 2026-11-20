@@ -45,8 +45,8 @@ their original meaning; completed feature work is not being relabeled.
 | 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–4 complete locally; phase 5 offline gates pass, live acceptance pending (provider HTTP 429) | Grounded extraction and evaluation runners implemented; real-model quality/latency/cost acceptance remains open |
 | 5 Complete Compose / Azure deployment | Local Compose phase complete; Azure/public deployment pending | Verified full stack, internal TLS, persistent volumes, secrets, smoke and logical restore checks; cloud provisioning/CI/CD remain pending |
 | 6 Claude provider | Implemented locally; live acceptance pending | Opt-in NestJS generation, streaming, one scoped workflow evidence tool, cancellation, sanitized errors, and mocked transport tests |
-| 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
-| 8 Snowflake learning component | Pending | Separate ingestion, views, CTE/window queries, Dynamic Tables, Cortex Analyst model |
+| 7 Monorepo tooling | Assessment complete; migration deferred | Keep Yarn for now. Prototype shared TypeScript contracts and benchmark a workspace when CI or contract duplication warrants it. |
+| 8 Snowflake learning component | Lab SQL prepared; Snowflake verification pending | Synthetic ingestion, daily view, CTE/window query, Dynamic Table, and Cortex Analyst semantic view in [the Snowflake lab](../snowflake/README.md). |
 
 Existing SQL indexes, Docker files, or TypeScript LangGraph do not imply that
 the corresponding expanded roadmap task is complete.
@@ -709,3 +709,21 @@ This completes only Task 5's local phase. Azure/public HTTPS, CI/CD deployment,
 managed secret delivery/rotation, off-site/PITR backups, resource sizing, and
 production operations remain pending. Task 4 real-provider acceptance is still
 separately pending its documented HTTP 429 blocker.
+
+## Task 7 monorepo tooling assessment
+
+The API and worker declare 28 shared dependencies, with matching ranges for 27.
+The web app shares three declared dependencies with the API and two with the
+worker. The API already owns the Prisma schema, and the worker build checks its
+generated copy. A shared TypeScript contract package would be most useful for
+the worker status callback and WebSocket event payloads. NestJS should continue
+validating data at the HTTP boundary, and Python should retain its own package
+and runtime validation.
+
+Keep the current Yarn installs and per-service Docker builds for the Azure
+rollout. A pnpm workspace could consolidate dependency resolution and link a
+future contract package. Turborepo could coordinate builds and prune Docker
+contexts, but a prototype would need to preserve Prisma generation, the web
+build's `NEXT_PUBLIC_WEBSOCKET_URL` input, and independent image builds.
+Measure clean and warm CI builds before deciding to migrate.
+[pnpm workspaces](https://pnpm.io/workspaces/) · [Turborepo Docker guide](https://turborepo.dev/docs/guides/tools/docker)
