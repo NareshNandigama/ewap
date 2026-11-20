@@ -197,6 +197,18 @@ try {
     headers: { Authorization: `Bearer ${foreign.accessToken}` },
   });
   assert.equal(forbidden.status, 404);
+  const demo = await request('/auth/demo', {
+    method: 'POST',
+    authenticated: false,
+  });
+  const demoClaims = JSON.parse(
+    Buffer.from(demo.accessToken.split('.')[1], 'base64url').toString('utf8'),
+  );
+  assert.equal(demoClaims.role, 'MEMBER');
+  const demoForeignRun = await fetch(`${base}/api/v1/workflow-runs/${run.id}`, {
+    headers: { Authorization: `Bearer ${demo.accessToken}` },
+  });
+  assert.equal(demoForeignRun.status, 404);
   console.log(
     JSON.stringify(
       {
@@ -206,6 +218,7 @@ try {
           'TLS database',
           'plaintext rejected',
           'JWT registration/login',
+          'demo member login and isolation',
           'run idempotency',
           'RabbitMQ/worker execution',
           'authenticated status socket',

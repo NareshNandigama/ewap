@@ -94,7 +94,17 @@ if (command === 'init') {
       'migrate',
       '/verify/local-smoke.mjs',
     ]);
-  else if (command === 'account')
+  else if (command === 'account') {
+    docker(
+      [
+        'exec', '-T', 'postgres', 'psql', '-U', 'ewap_local', '-d', 'ewap_local',
+        '-v', 'ON_ERROR_STOP=1',
+      ],
+      {
+        input: readFileSync(resolve(root, 'docker/local/demo-account.sql')),
+        stdio: ['pipe', 'inherit', 'inherit'],
+      },
+    );
     docker([
       'run',
       '--rm',
@@ -106,7 +116,7 @@ if (command === 'init') {
       'migrate',
       '/verify/local-account.mjs',
     ]);
-  else if (command === 'backup') {
+  } else if (command === 'backup') {
     const path = resolve(process.argv[3] ?? '');
     if (!process.argv[3] || dirname(path) === path)
       throw new Error('Supply a new backup file path in an existing directory');

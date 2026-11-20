@@ -28,7 +28,8 @@ node scripts/local-stack.mjs smoke
 Open **http://localhost:18080/login**. Sign in with `EWAP_LOCAL_EMAIL` and
 `EWAP_LOCAL_PASSWORD` from the generated `.env.stack-local`. The account command
 uses the normal registration/login API; it does not bypass tenant authorization.
-It is safe to repeat with unchanged credentials. Guest/demo login is not seeded.
+It is safe to repeat with unchanged credentials. The account command also seeds
+a passwordless demo member in a separate local organization for the demo button.
 
 `init` writes unique local-only database, broker, JWT, worker/service-key, and login
 secrets with mode 0600. Existing infrastructure secrets are retained on repeat.

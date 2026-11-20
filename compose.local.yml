@@ -95,6 +95,7 @@ services:
       DB_SSL_MODE: verify-full
       NODE_EXTRA_CA_CERTS: /tls/ca.crt
       JWT_SECRET: ${EWAP_JWT_SECRET:?Run local-stack init}
+      DEMO_USER_EMAIL: local-demo@example.invalid
       FRONTEND_URL: ${EWAP_PUBLIC_ORIGIN:-http://localhost:${EWAP_WEB_PORT:-18080}}
       REDIS_URL: redis://redis:6379
       RATE_LIMIT_ENABLED: 'true'
