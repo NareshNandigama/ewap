@@ -16,6 +16,16 @@ const production = {
 const validate = (value: object) => environmentSchema.validate(value);
 
 describe('runtime environment validation', () => {
+  it('requires credentials for the selected AI provider', () => {
+    const { GEMINI_API_KEY: _, ...value } = production;
+    expect(validate(value).error).toBeDefined();
+    const claude = { ...value, AI_PROVIDER: 'claude' };
+    expect(validate({ ...claude, CLAUDE_MODEL: 'claude-test' }).error).toBeDefined();
+    expect(validate({ ...claude, ANTHROPIC_API_KEY: 'synthetic-key' }).error).toBeDefined();
+    expect(validate({
+      ...claude, CLAUDE_MODEL: 'claude-test', ANTHROPIC_API_KEY: 'synthetic-key',
+    }).error).toBeUndefined();
+  });
   it('accepts production DB fields without DATABASE_URL', () => {
     const result = validate(production);
     expect(result.error).toBeUndefined();

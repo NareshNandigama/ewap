@@ -33,6 +33,7 @@
     "schema:check": "node ../scripts/schema-sync.mjs --check"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.11.0",
     "@google/genai": "^2.21.0",
     "@langchain/core": "^1.2.20",
     "@langchain/langgraph": "^1.5.1",

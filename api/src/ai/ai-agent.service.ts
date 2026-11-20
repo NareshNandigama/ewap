@@ -1,11 +1,5 @@
-
 import { Inject, Injectable } from '@nestjs/common';
-import {
-  Annotation,
-  END,
-  START,
-  StateGraph,
-} from '@langchain/langgraph';
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 
 import type { LlmProvider } from './providers/llm-provider.js';
 import { WorkflowRunTool } from './tools/workflow-run.tool.js';
@@ -30,11 +24,10 @@ export class AiAgentService {
   ) {
     this.graph = new StateGraph(AgentState)
       .addNode('fetchWorkflowRun', async (state) => {
-        const toolResult =
-          await this.workflowRunTool.getWorkflowRun(
-            state.workflowRunId,
-            state.organizationId,
-          );
+        const toolResult = await this.workflowRunTool.getWorkflowRun(
+          state.workflowRunId,
+          state.organizationId,
+        );
 
         return { toolResult };
       })
@@ -47,6 +40,7 @@ export class AiAgentService {
           };
         }
 
+        const evidence = JSON.stringify(state.toolResult.data, null, 2);
         const prompt = `
 You are the EWAP Engineering Assistant.
 
@@ -57,7 +51,7 @@ Question:
 ${state.question}
 
 Workflow execution data:
-${JSON.stringify(state.toolResult.data, null, 2)}
+${this.llmProvider.generateWithWorkflowEvidence ? 'Retrieve the authorized run snapshot using the workflow_evidence tool.' : evidence}
 
 Rules:
 - Do not invent errors, logs, or execution steps.
@@ -69,7 +63,12 @@ Rules:
 - If evidence is insufficient, say so clearly.
 `;
 
-        const answer = await this.llmProvider.generate(prompt);
+        const answer = this.llmProvider.generateWithWorkflowEvidence
+          ? await this.llmProvider.generateWithWorkflowEvidence(
+              prompt,
+              evidence,
+            )
+          : await this.llmProvider.generate(prompt);
 
         return { answer };
       })

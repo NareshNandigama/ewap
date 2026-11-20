@@ -44,7 +44,7 @@ their original meaning; completed feature work is not being relabeled.
 | 3 Redis rate limiting | Complete locally; verified, not deployed | Atomic Redis quotas for registration/login/demo and AI; tenant/user isolation, 429/Retry-After, fail-closed 503; real Redis concurrency and HTTP tests |
 | 4 Python LangGraph / LLM diagnostics and RAG | Phases 1–4 complete locally; phase 5 offline gates pass, live acceptance pending (provider HTTP 429) | Grounded extraction and evaluation runners implemented; real-model quality/latency/cost acceptance remains open |
 | 5 Complete Compose / Azure deployment | Local Compose phase complete; Azure/public deployment pending | Verified full stack, internal TLS, persistent volumes, secrets, smoke and logical restore checks; cloud provisioning/CI/CD remain pending |
-| 6 Claude provider | Pending | Generation, streaming, tools, cancellation, errors, mocked tests; choose ownership to avoid duplicate provider stacks |
+| 6 Claude provider | Implemented locally; live acceptance pending | Opt-in NestJS generation, streaming, one scoped workflow evidence tool, cancellation, sanitized errors, and mocked transport tests |
 | 7 Monorepo tooling | Pending | Evaluate pnpm/Turborepo and shared TypeScript contracts; Python remains independently manageable |
 | 8 Snowflake learning component | Pending | Separate ingestion, views, CTE/window queries, Dynamic Tables, Cortex Analyst model |
 

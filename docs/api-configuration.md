@@ -6,8 +6,8 @@ missing file is ignored; other file-loading errors abort startup. Nest validates
 the resulting configuration before constructing services and does not load the
 file a second time.
 
-Required in both modes: `JWT_SECRET`, `FRONTEND_URL` (HTTP/HTTPS), and
-`GEMINI_API_KEY` (the currently wired provider). `NODE_ENV` defaults to
+Both modes require `JWT_SECRET`, `FRONTEND_URL` (HTTP/HTTPS), and credentials
+for the selected AI provider. `NODE_ENV` defaults to
 `development`; `PORT` defaults to 3000 and must be an integer from 1 to 65535. `HOST` defaults
 to `0.0.0.0`; set `HOST=127.0.0.1` for a host-only local listener.
 
@@ -19,6 +19,14 @@ to `0.0.0.0`; set `HOST=127.0.0.1` for a host-only local listener.
   and `RABBITMQ_QUEUE`. Set `ENABLE_MESSAGING=false` to disable it.
 - Redis and Python diagnostics remain optional; worker callback authentication
   is described in [workflow status security](workflow-status-security.md).
+
+The NestJS AI provider defaults to `AI_PROVIDER=gemini` and requires
+`GEMINI_API_KEY`. To use Claude for chat and TypeScript diagnostics, set
+`AI_PROVIDER=claude`, `ANTHROPIC_API_KEY`, and `CLAUDE_MODEL` to a model
+available to your Anthropic project. Claude workflow diagnostics use one
+tool round trip to pass the already authorized run snapshot. Both calls share
+the same deadline. Python diagnostics and runbook embeddings keep their own
+provider configuration.
 
 Production database TLS now verifies certificates and hostnames. Configure
 `DB_CA_CERT` with a trusted PEM CA bundle when system roots are insufficient.

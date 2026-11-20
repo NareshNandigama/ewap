@@ -75,7 +75,7 @@ Events (latest first): ${state.evidence}
       .update(
         JSON.stringify([
           'integration-prompt-v2',
-          GEMINI_MODEL,
+          this.llm.cacheModel ?? GEMINI_MODEL,
           PROVIDER_LIMITS_VERSION,
           question,
           evidence,
