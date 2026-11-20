@@ -92,8 +92,10 @@ or multi-agent requirement is implied.
   implemented; preserve workflow WebSockets. No GraphQL or gRPC addition planned.
 - Gemini multi-agent diagnostics: implemented locally with a workflow
   investigator, runbook researcher, and synthesis agent sharing the existing
-  Gemini API key. Live model evaluation remains separate. MCP remains optional.
+  Gemini API key. Live model evaluation remains separate.
   [Gemini diagnostic workflow](grounded-diagnostics.md)
+- Optional MCP integration exposes read-only workflow and runbook tools to
+  local clients through the existing EWAP API. [MCP setup](mcp.md)
 
 ## Phase 1 verification
 
