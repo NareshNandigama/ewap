@@ -6,10 +6,12 @@ import { vi } from 'vitest';
 import { AiService } from './ai.service.js';
 import { AiConversationService } from './ai-conversation.service.js';
 import { WorkflowDiagnosticsService } from './workflow-diagnostics.service.js';
+import { GroundedDiagnosticsService } from './grounded-diagnostics.service.js';
 
 describe('AiController', () => {
   let controller: AiController;
   const diagnostics = { diagnose: vi.fn() };
+  const grounding = { diagnose: vi.fn() };
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -18,6 +20,7 @@ describe('AiController', () => {
         { provide: AiService, useValue: {} },
         { provide: AiConversationService, useValue: {} },
         { provide: WorkflowDiagnosticsService, useValue: diagnostics },
+        { provide: GroundedDiagnosticsService, useValue: grounding },
         { provide: JwtService, useValue: {} },
       ],
     })
@@ -51,6 +54,34 @@ describe('AiController', () => {
       'Why failed?',
       'run-1',
       'verified-org',
+    );
+  });
+
+  it('forwards the Gemini multi-agent selection with the authenticated user', async () => {
+    const user = {
+      sub: 'user-1',
+      organizationId: 'verified-org',
+      role: 'MEMBER',
+    };
+    grounding.diagnose.mockResolvedValue({ source: 'gemini-grounded' });
+    await expect(
+      controller.diagnose(
+        {
+          question: 'connection timeout',
+          workflowRunId: 'run-1',
+          retrievalMode: 'keyword',
+          groundingProvider: 'gemini',
+        },
+        user,
+      ),
+    ).resolves.toEqual({ source: 'gemini-grounded' });
+    expect(grounding.diagnose).toHaveBeenCalledWith(
+      'connection timeout',
+      'run-1',
+      user,
+      'keyword',
+      expect.any(AbortSignal),
+      'gemini',
     );
   });
 });

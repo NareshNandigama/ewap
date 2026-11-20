@@ -9,14 +9,29 @@ function fixture() {
     isEnabled: () => true,
     diagnose: vi.fn().mockRejectedValue(new Error('provider unavailable')),
   };
+  const gemini = {
+    isEnabled: () => true,
+    diagnose: vi.fn().mockResolvedValue({
+      summary: 'Synthetic run',
+      rootCause: { status: 'undetermined' },
+      limitations: [],
+      grounding: {
+        status: 'insufficient_evidence',
+        observations: [],
+        passages: [],
+      },
+    }),
+  };
   return {
     runs,
     retrieval,
     python,
+    gemini,
     service: new GroundedDiagnosticsService(
       runs as never,
       retrieval as never,
       python as never,
+      gemini as never,
     ),
   };
 }
@@ -28,6 +43,30 @@ it('authorizes the workflow before retrieval/provider work', async () => {
     f.service.diagnose('Why failed?', 'foreign', user, 'keyword'),
   ).rejects.toMatchObject({ status: 404 });
   expect(f.retrieval.search).not.toHaveBeenCalled();
+  expect(f.python.diagnose).not.toHaveBeenCalled();
+});
+it('uses authorized runbook evidence for the explicitly selected Gemini engine', async () => {
+  const f = fixture();
+  await expect(
+    f.service.diagnose(
+      'connection timeout',
+      'run',
+      user,
+      'keyword',
+      undefined,
+      'gemini',
+    ),
+  ).resolves.toMatchObject({
+    source: 'gemini-grounded',
+    diagnostics: { grounding: { status: 'insufficient_evidence' } },
+  });
+  expect(f.runs.findOne).toHaveBeenCalledWith('run', user.organizationId);
+  expect(f.retrieval.search).toHaveBeenCalledWith(
+    { query: 'connection timeout', mode: 'keyword', limit: 5 },
+    user,
+    expect.any(AbortSignal),
+  );
+  expect(f.gemini.diagnose).toHaveBeenCalledOnce();
   expect(f.python.diagnose).not.toHaveBeenCalled();
 });
 it('fails unavailable without downgrading grounded requests', async () => {

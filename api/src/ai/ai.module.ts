@@ -1,5 +1,6 @@
 import { RunbookModule } from '../runbook/runbook.module.js';
 import { GroundedDiagnosticsService } from './grounded-diagnostics.service.js';
+import { GeminiGroundedDiagnosticsService } from './gemini-grounded-diagnostics.service.js';
 import { RateLimitModule } from '../rate-limit/rate-limit.module.js';
 
 import { Module } from '@nestjs/common';
@@ -31,6 +32,7 @@ import { AuthModule } from '../auth/auth.module.js';
   controllers: [AiController],
   providers: [
     GroundedDiagnosticsService,
+    GeminiGroundedDiagnosticsService,
     AiService,
     AiAgentService,
     PythonDiagnosticsClient,

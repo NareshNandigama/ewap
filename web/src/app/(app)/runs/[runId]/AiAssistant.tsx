@@ -6,7 +6,7 @@ import { readAiStream } from '@/lib/ai-stream';
 import { API_BASE_URL } from '@/lib/constants';
 import { getAccessToken } from '@/lib/auth/auth';
 
-type AiMode = 'standard' | 'agent';
+type AiMode = 'standard' | 'agent' | 'grounded';
 
 type AiAssistantProps = {
   runId: string;
@@ -35,6 +35,7 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
   const [aiQuestion, setAiQuestion] = useState('');
   const [aiMode, setAiMode] = useState<AiMode>('standard');
   const [agentMessages, setAgentMessages] = useState<AiMessage[]>([]);
+  const [groundedMessages, setGroundedMessages] = useState<AiMessage[]>([]);
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [isHistoryLoading, setIsHistoryLoading] = useState(true);
 
@@ -163,10 +164,15 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
 
     return () => {
       cancelled = true;
+      abortControllerRef.current?.abort();
     };
   }, [runId]);
 
-  const visibleMessages = aiMode === 'agent' ? agentMessages : messages;
+  const visibleMessages = {
+    standard: messages,
+    agent: agentMessages,
+    grounded: groundedMessages,
+  }[aiMode];
 
   const askAi = async () => {
     const question = aiQuestion.trim();
@@ -183,7 +189,11 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
     const userMessageId = crypto.randomUUID();
     const assistantMessageId = crypto.randomUUID();
 
-    const updateMessages = aiMode === 'agent' ? setAgentMessages : setMessages;
+    const updateMessages = {
+      standard: setMessages,
+      agent: setAgentMessages,
+      grounded: setGroundedMessages,
+    }[aiMode];
 
     updateMessages((current) => [
       ...current,
@@ -208,7 +218,7 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
         throw new Error('Authentication required');
       }
 
-      if (aiMode === 'agent') {
+      if (aiMode !== 'standard') {
         const response = await fetch(`${API_BASE_URL}/ai/agent/diagnose`, {
           method: 'POST',
           headers: {
@@ -218,21 +228,25 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
           body: JSON.stringify({
             question,
             workflowRunId: runId,
+            ...(aiMode === 'grounded' && {
+              retrievalMode: 'keyword',
+              groundingProvider: 'gemini',
+            }),
           }),
           signal: controller.signal,
         });
 
         if (!response.ok) {
-          throw new Error(`LangGraph request failed: ${response.status}`);
+          throw new Error(`Diagnostics request failed: ${response.status}`);
         }
 
         const result = (await response.json()) as { answer?: string };
 
         if (typeof result.answer !== 'string') {
-          throw new Error('Invalid LangGraph response');
+          throw new Error('Invalid diagnostics response');
         }
 
-        setAgentMessages((current) =>
+        updateMessages((current) =>
           current.map((message) =>
             message.id === assistantMessageId
               ? { ...message, content: result.answer as string }
@@ -298,14 +312,16 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
         return;
       }
 
-      console.error('AI request failed:', error);
+      if (aiMode !== 'grounded') console.error('AI request failed:', error);
 
       updateMessages((current) =>
         current.map((message) =>
           message.id === assistantMessageId
             ? {
                 ...message,
-                content: 'Unable to get an AI response.',
+                content: aiMode === 'grounded'
+                  ? 'Unable to complete Gemini multi-agent diagnostics. Try again in a moment.'
+                  : 'Unable to get an AI response.',
               }
             : message,
         ),
@@ -329,6 +345,7 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
             [
               ['standard', 'Standard AI'],
               ['agent', 'LangGraph Agent'],
+              ['grounded', 'Gemini Multi-Agent'],
             ] as const
           ).map(([mode, label]) => (
             <button
@@ -352,6 +369,11 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
         <p className="mb-5 text-sm text-slate-500">
           LangGraph test mode: responses are not streamed or saved to
           conversation history.
+        </p>
+      )}
+      {aiMode === 'grounded' && (
+        <p className="mb-5 text-sm text-slate-500">
+          Use a short search phrase from the runbook, such as “connection timeout”.
         </p>
       )}
       <div className="mb-5">
@@ -399,7 +421,9 @@ export default function AiAssistant({ runId }: AiAssistantProps) {
                   ? 'You'
                   : aiMode === 'agent'
                     ? 'LangGraph Agent'
-                    : 'AI Engineering Assistant'}
+                    : aiMode === 'grounded'
+                      ? 'Gemini Multi-Agent'
+                      : 'AI Engineering Assistant'}
               </div>
 
               <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">

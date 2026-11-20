@@ -26,4 +26,8 @@ export class DiagnoseWorkflowDto extends AskAiDto {
   @IsOptional()
   @IsIn(['keyword', 'vector', 'hybrid'])
   retrievalMode?: 'keyword' | 'vector' | 'hybrid';
+
+  @IsOptional()
+  @IsIn(['python', 'gemini'])
+  groundingProvider?: 'python' | 'gemini';
 }

@@ -68,6 +68,7 @@ export const environmentSchema = Joi.object({
     otherwise: Joi.optional(),
   }),
   AI_PROVIDER: Joi.string().valid('gemini', 'claude').default('gemini'),
+  GEMINI_GROUNDING_MODEL: Joi.string().trim().max(120).optional(),
   GEMINI_API_KEY: Joi.string().when('AI_PROVIDER', {
     is: 'claude',
     otherwise: Joi.required(),

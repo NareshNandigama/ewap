@@ -2,6 +2,7 @@ import { GroundedDiagnosticsService } from './grounded-diagnostics.service.js';
 import { RateLimitGuard } from '../rate-limit/rate-limit.guard.js';
 import {
   Body,
+  BadRequestException,
   Controller,
   Get,
   HttpCode,
@@ -65,6 +66,10 @@ export class AiController {
     @CurrentUser() user: JwtPayload,
     @Res({ passthrough: true }) res?: Response,
   ) {
+    if (dto.groundingProvider && !dto.retrievalMode)
+      throw new BadRequestException(
+        'A grounding provider requires retrievalMode',
+      );
     if (dto.retrievalMode) {
       if (!this.grounded)
         throw new Error('Grounded diagnostics not configured');
@@ -81,6 +86,7 @@ export class AiController {
           user,
           dto.retrievalMode,
           cancel.signal,
+          dto.groundingProvider,
         );
       } finally {
         res?.off('close', close);

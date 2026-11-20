@@ -243,7 +243,7 @@ export default function RunDetailsClient({ run }: RunDetailsClientProps) {
 
         {isAiOpen && (
           <div className="mt-6 border-t border-slate-200 pt-6">
-            <AiAssistant runId={currentRun.id} />
+            <AiAssistant key={currentRun.id} runId={currentRun.id} />
           </div>
         )}
       </section>

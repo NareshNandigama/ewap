@@ -12,6 +12,27 @@ second classified the rejection as HTTP 429. Further attempts stopped.
 
 ## Use the grounded path
 
+On a workflow run, choose **Gemini Multi-Agent** and enter a short search
+phrase such as `connection timeout`. It uses the API's `GEMINI_API_KEY` and
+PostgreSQL keyword search. This mode can run without Python or an embedding
+provider. API callers can select it with `"groundingProvider": "gemini"`
+alongside `"retrievalMode": "keyword"`. The response source is
+`gemini-grounded`. Requests without a grounding provider still use Python
+for grounded diagnostics.
+Set `GEMINI_GROUNDING_MODEL` in the API environment to select a different
+Gemini model that supports structured output.
+
+The API resolves the authorized workflow and runbook evidence before invoking
+the agents. The workflow investigator selects quotes from up to 20 recent
+warnings or errors. The runbook researcher independently selects quotes from
+up to five matching passages. After validating both selections, the
+synthesis agent pairs the exact quotes. Each role uses the same Gemini key.
+The flow makes up to three model calls within a shared 35-second deadline and
+uses the API's existing request quota. There are no calls when either input
+snapshot is empty, and synthesis is skipped if a specialist finds no valid
+quote. Agents only see the evidence needed for their assigned step and have
+no direct access to the database. Log and passage text is sent to Gemini.
+
 Configure the existing authenticated Python integration. Python deterministic
 mode works and abstains; for model-selected observations, enable Python LLM mode
 as described in the [service README](../ai-service/README.md). Use an API Python

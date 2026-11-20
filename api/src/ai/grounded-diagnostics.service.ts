@@ -1,11 +1,13 @@
 import {
   BadRequestException,
   Injectable,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
 import type { JwtPayload } from '../auth/types/jwt-payload.js';
 import { WorkflowRunService } from '../workflow-run/workflow-run.service.js';
 import { RunbookRetrievalService } from '../runbook/runbook-retrieval.service.js';
+import { GeminiGroundedDiagnosticsService } from './gemini-grounded-diagnostics.service.js';
 import {
   PythonDiagnosticsClient,
   type GroundingContext,
@@ -17,6 +19,7 @@ export class GroundedDiagnosticsService {
     private readonly runs: WorkflowRunService,
     private readonly retrieval: RunbookRetrievalService,
     private readonly python: PythonDiagnosticsClient,
+    @Optional() private readonly gemini?: GeminiGroundedDiagnosticsService,
   ) {}
 
   async diagnose(
@@ -25,6 +28,7 @@ export class GroundedDiagnosticsService {
     user: JwtPayload,
     mode: 'keyword' | 'vector' | 'hybrid',
     signal?: AbortSignal,
+    provider: 'python' | 'gemini' = 'python',
   ) {
     const controller = new AbortController();
     const cancel = () => controller.abort();
@@ -32,7 +36,14 @@ export class GroundedDiagnosticsService {
     signal?.addEventListener('abort', cancel, { once: true });
     if (signal?.aborted) controller.abort();
     try {
-      return await this.run(question, runId, user, mode, controller.signal);
+      return await this.run(
+        question,
+        runId,
+        user,
+        mode,
+        controller.signal,
+        provider,
+      );
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener('abort', cancel);
@@ -45,6 +56,7 @@ export class GroundedDiagnosticsService {
     user: JwtPayload,
     mode: 'keyword' | 'vector' | 'hybrid',
     signal: AbortSignal,
+    provider: 'python' | 'gemini',
   ) {
     signal.throwIfAborted();
     if (
@@ -58,9 +70,10 @@ export class GroundedDiagnosticsService {
       );
     // Neither retrieval nor model work can happen before the authorized run lookup.
     const run = await this.runs.findOne(runId, user.organizationId);
-    if (!this.python.isEnabled())
+    const engine = provider === 'gemini' ? this.gemini : this.python;
+    if (!engine?.isEnabled())
       throw new ServiceUnavailableException(
-        'Python grounded diagnostics are not configured',
+        'Requested grounded diagnostics provider is not configured',
       );
     const result = await this.retrieval.search(
       { query: question.trim(), mode, limit: 5 },
@@ -82,7 +95,7 @@ export class GroundedDiagnosticsService {
     signal?.throwIfAborted();
     let diagnostics;
     try {
-      diagnostics = await this.python.diagnose(
+      diagnostics = await engine.diagnose(
         user.organizationId,
         question.trim(),
         run,
@@ -109,6 +122,8 @@ export class GroundedDiagnosticsService {
       }),
       ...diagnostics.limitations.map((item) => `Limitation: ${item}`),
     ].join('\n');
-    return { answer, source: 'python-grounded' as const, diagnostics };
+    const source =
+      provider === 'gemini' ? 'gemini-grounded' : 'python-grounded';
+    return { answer, source, diagnostics };
   }
 }

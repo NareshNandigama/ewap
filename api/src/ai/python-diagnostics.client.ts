@@ -2,6 +2,10 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'node:crypto';
 import Joi from 'joi';
+import {
+  groundedObservationSchema,
+  hasGroundedSupport,
+} from './grounding-evidence.js';
 
 import type { WorkflowRunService } from '../workflow-run/workflow-run.service.js';
 
@@ -77,19 +81,15 @@ const passageSchema = Joi.object({
     .required(),
   content: Joi.string().min(1).max(2000).required(),
 }).unknown(false);
-const observationSchema = Joi.object({
-  claim: Joi.string().min(8).max(500).required(),
-  log_id: Joi.string().min(1).max(200).required(),
-  log_quote: Joi.string().min(8).max(500).required(),
-  passage_id: Joi.string().min(1).max(200).required(),
-  passage_quote: Joi.string().min(8).max(500).required(),
-}).unknown(false);
 const responseSchema = Joi.object({
   grounding: Joi.object({
     status: Joi.string()
       .valid('supported_observations', 'insufficient_evidence')
       .required(),
-    observations: Joi.array().items(observationSchema).max(5).required(),
+    observations: Joi.array()
+      .items(groundedObservationSchema)
+      .max(5)
+      .required(),
     passages: Joi.array()
       .items(passageSchema)
       .max(5)
@@ -320,19 +320,7 @@ export class PythonDiagnosticsClient {
             result.observations.length > 0 ||
           (report.findings?.length ?? 0) > 0 ||
           result.observations.some(
-            (o) =>
-              o.claim !== o.log_quote ||
-              !logs.some(
-                (l) =>
-                  l.id === o.log_id &&
-                  ['ERROR', 'WARN'].includes(l.level) &&
-                  l.message.includes(o.log_quote),
-              ) ||
-              !grounding.passages.some(
-                (p) =>
-                  p.chunkId === o.passage_id &&
-                  p.content.includes(o.passage_quote),
-              ),
+            (o) => !hasGroundedSupport(o, logs, grounding.passages),
           )
         )
           throw new PythonDiagnosticsFailure('invalid_response');

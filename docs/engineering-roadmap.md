@@ -46,7 +46,7 @@ their original meaning; completed feature work is not being relabeled.
 | 5 Complete Compose / Azure deployment | Local Compose phase complete; Azure/public deployment pending | Verified full stack, internal TLS, persistent volumes, secrets, smoke and logical restore checks; cloud provisioning/CI/CD remain pending |
 | 6 Claude provider | Implemented locally; live acceptance pending | Opt-in NestJS generation, streaming, one scoped workflow evidence tool, cancellation, sanitized errors, and mocked transport tests |
 | 7 Monorepo tooling | Assessment complete; migration deferred | Keep Yarn for now. Prototype shared TypeScript contracts and benchmark a workspace when CI or contract duplication warrants it. |
-| 8 Snowflake learning component | Lab SQL prepared; Snowflake verification pending | Synthetic ingestion, daily view, CTE/window query, Dynamic Table, and Cortex Analyst semantic view in [the Snowflake lab](../snowflake/README.md). |
+| 8 Snowflake learning component | Optional; outside project completion criteria | [The Snowflake lab](../snowflake/README.md) contains synthetic ingestion, a daily view, a CTE/window query, a Dynamic Table, and a Cortex Analyst semantic view. Snowflake verification is optional. |
 
 Existing SQL indexes, Docker files, or TypeScript LangGraph do not imply that
 the corresponding expanded roadmap task is complete.
@@ -90,8 +90,10 @@ or multi-agent requirement is implied.
   HTTPS, secrets, backups, and verification of the complete end-to-end flow.
 - Protocol plan: REST/JSON between API and Python; SSE when model streaming is
   implemented; preserve workflow WebSockets. No GraphQL or gRPC addition planned.
-- MCP and multiple agents: optional, pending a demonstrated need and evaluation
-  benefit. Neither is required for the first diagnostic workflow.
+- Gemini multi-agent diagnostics: implemented locally with a workflow
+  investigator, runbook researcher, and synthesis agent sharing the existing
+  Gemini API key. Live model evaluation remains separate. MCP remains optional.
+  [Gemini diagnostic workflow](grounded-diagnostics.md)
 
 ## Phase 1 verification
 
