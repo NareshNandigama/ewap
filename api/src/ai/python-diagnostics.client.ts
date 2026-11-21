@@ -49,6 +49,12 @@ export interface PythonDiagnosticReport {
     passages: GroundingPassage[];
   };
   findings?: { hypothesis: string; log_id: string; quote: string }[];
+  conflictingGuidance?: {
+    sourceKey: string;
+    version: number;
+    passageId: string;
+    quote: string;
+  }[];
   usage?: { model: string; inputTokens: number; outputTokens: number };
   organizationId: string;
   workflowRunId: string;

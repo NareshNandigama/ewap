@@ -109,8 +109,13 @@ export class GroundedDiagnosticsService {
     const evidence = diagnostics.grounding;
     if (!evidence)
       throw new ServiceUnavailableException('Grounded diagnostics unavailable');
+    const logTimes = new Map(
+      (diagnostics.evidence ?? []).map((log) => [log.id, log.createdAt]),
+    );
     const answer = [
-      '[Grounded evidence — root cause not established]',
+      provider === 'gemini'
+        ? '[Incident report]'
+        : '[Grounded evidence — root cause not established]',
       diagnostics.summary,
       `Root cause: ${diagnostics.rootCause.status === 'not_applicable' ? 'No failure established by the run status.' : 'Undetermined from available evidence.'}`,
       ...(evidence.status === 'insufficient_evidence'
@@ -118,8 +123,20 @@ export class GroundedDiagnosticsService {
         : []),
       ...evidence.observations.map((o) => {
         const p = evidence.passages.find((p) => p.chunkId === o.passage_id)!;
+        if (provider === 'gemini') {
+          return `Timeline ${logTimes.get(o.log_id) ?? ''} · log ${o.log_id}: ${o.claim}\nRunbook guidance to review · ${p.sourceKey} v${p.version} (chunk ${p.chunkId}): ${o.passage_quote}`;
+        }
         return `Observed log ${o.log_id}: ${o.claim}\nRelated runbook ${p.sourceKey} v${p.version} (${p.documentHash}, chunk ${p.chunkId}): ${o.passage_quote}\nThis reference does not establish a cause or verified fix.`;
       }),
+      ...(diagnostics.conflictingGuidance ?? []).map(
+        (item) =>
+          `Potentially conflicting guidance · ${item.sourceKey} v${item.version} (chunk ${item.passageId}): ${item.quote}`,
+      ),
+      ...(provider === 'gemini'
+        ? (diagnostics.nextSteps ?? []).map(
+            (step) => `Operator follow-up: ${step}`,
+          )
+        : []),
       ...diagnostics.limitations.map((item) => `Limitation: ${item}`),
     ].join('\n');
     const source =

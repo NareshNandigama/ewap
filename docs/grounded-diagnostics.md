@@ -33,6 +33,9 @@ snapshot is empty, and synthesis is skipped if a specialist finds no valid
 quote. Agents only see the evidence needed for their assigned step and have
 no direct access to the database. Log and passage text is sent to Gemini.
 
+See the [failed release demo](incident-demo.md) for seeded incidents, an MCP
+handoff, and a repeatable scorecard.
+
 Configure the existing authenticated Python integration. Python deterministic
 mode works and abstains; for model-selected observations, enable Python LLM mode
 as described in the [service README](../ai-service/README.md). Use an API Python

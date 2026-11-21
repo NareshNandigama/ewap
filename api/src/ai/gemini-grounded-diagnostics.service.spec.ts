@@ -58,6 +58,11 @@ beforeEach(() => create.mockReset());
 const modelResponse = (value: object) => ({
   candidates: [{ finishReason: 'STOP' }],
   text: JSON.stringify(value),
+  usageMetadata: {
+    promptTokenCount: 10,
+    candidatesTokenCount: 4,
+    thoughtsTokenCount: 2,
+  },
 });
 
 it('runs separate evidence agents and publishes only validated synthesis', async () => {
@@ -99,6 +104,7 @@ it('runs separate evidence agents and publishes only validated synthesis', async
     passages: grounding.passages,
   });
   expect(report.rootCause.status).toBe('undetermined');
+  expect(report.usage).toMatchObject({ inputTokens: 30, outputTokens: 18 });
   expect(create).toHaveBeenCalledTimes(3);
   const [investigator, researcher, synthesis] = create.mock.calls.map(
     ([request]) => request,
@@ -129,6 +135,9 @@ it('runs separate evidence agents and publishes only validated synthesis', async
 it('abstains without calling Gemini when no passages match', async () => {
   const report = await diagnose({ mode: 'keyword', passages: [] });
   expect(report.grounding?.status).toBe('insufficient_evidence');
+  expect(report.nextSteps).toEqual([
+    'Find the current runbook for this workflow and retry using terms from its text.',
+  ]);
   expect(create).not.toHaveBeenCalled();
 });
 
@@ -146,6 +155,39 @@ it('skips synthesis if a specialist finds no supported quote', async () => {
   const report = await diagnose();
   expect(report.grounding?.status).toBe('insufficient_evidence');
   expect(create).toHaveBeenCalledTimes(2);
+});
+
+it('flags conflicting excerpts from two distinct runbooks and asks for clarification', async () => {
+  const other = {
+    ...grounding.passages[0],
+    chunkId: 'chunk-2',
+    sourceKey: 'release-freeze',
+    content: 'Wait to investigate worker connectivity until the freeze ends.',
+  };
+  const conflicts = [
+    { id: 'chunk-1', quote: passageQuote },
+    { id: 'chunk-2', quote: other.content },
+  ];
+  create
+    .mockResolvedValueOnce(
+      modelResponse({ evidence: [{ id: 'log-1', quote: logQuote }] }),
+    )
+    .mockResolvedValueOnce(modelResponse({ evidence: conflicts }))
+    .mockResolvedValueOnce(modelResponse({ observations: [valid], conflicts }));
+  const report = await diagnose({
+    ...grounding,
+    passages: [...grounding.passages, other],
+  });
+  expect(report.grounding).toMatchObject({
+    status: 'insufficient_evidence',
+    observations: [],
+  });
+  expect(report.conflictingGuidance?.map(({ sourceKey }) => sourceKey)).toEqual(
+    ['worker', 'release-freeze'],
+  );
+  expect(report.nextSteps).toEqual([
+    'Which runbook governs the affected environment and release window?',
+  ]);
 });
 
 it('cancels the other specialist when one call fails', async () => {

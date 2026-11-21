@@ -16,20 +16,18 @@ import type {
 } from './python-diagnostics.client.js';
 import type { WorkflowRunService } from '../workflow-run/workflow-run.service.js';
 
+const quoteSchema = Joi.object({
+  id: Joi.string().min(1).max(200).required(),
+  quote: Joi.string().min(8).max(500).required(),
+}).unknown(false);
+
 const synthesisSchema = Joi.object({
   observations: Joi.array().items(groundedObservationSchema).max(5).required(),
+  conflicts: Joi.array().items(quoteSchema).max(5),
 }).unknown(false);
 
 const selectionSchema = Joi.object({
-  evidence: Joi.array()
-    .items(
-      Joi.object({
-        id: Joi.string().min(1).max(200).required(),
-        quote: Joi.string().min(8).max(500).required(),
-      }).unknown(false),
-    )
-    .max(5)
-    .required(),
+  evidence: Joi.array().items(quoteSchema).max(5).required(),
 }).unknown(false);
 
 interface EvidenceText {
@@ -40,6 +38,11 @@ interface EvidenceText {
 interface SelectedQuote {
   id: string;
   quote: string;
+}
+
+interface AgentContext {
+  signal: AbortSignal;
+  usage: Array<{ inputTokens: number; outputTokens: number } | undefined>;
 }
 
 function responseSchema(property: string, fields: string[]) {
@@ -96,9 +99,17 @@ export class GeminiGroundedDiagnosticsService {
       }))
       .filter((log) => log.message.length >= 8);
     const canAnalyze = logs.length > 0 && grounding.passages.length > 0;
-    const observations = canAnalyze
-      ? await this.runAgents(question, logs, grounding, signal)
-      : [];
+    const usage: AgentContext['usage'] = [];
+    const { observations, conflicts } = canAnalyze
+      ? await this.runAgents(question, logs, grounding, { signal, usage })
+      : { observations: [], conflicts: [] };
+    observations.sort(
+      (a, b) =>
+        logs.findIndex(({ id }) => id === a.log_id) -
+        logs.findIndex(({ id }) => id === b.log_id),
+    );
+    const completeUsage =
+      usage.length > 0 && usage.every((entry) => entry !== undefined);
 
     const failed = ['FAILED', 'CANCELLED'].includes(run.status);
     return {
@@ -106,6 +117,19 @@ export class GeminiGroundedDiagnosticsService {
       workflowRunId: run.id,
       executionStatus: run.status,
       analysisMode: canAnalyze ? 'llm' : 'deterministic',
+      ...(completeUsage && {
+        usage: {
+          model: this.model,
+          inputTokens: usage.reduce(
+            (sum, entry) => sum + (entry?.inputTokens ?? 0),
+            0,
+          ),
+          outputTokens: usage.reduce(
+            (sum, entry) => sum + (entry?.outputTokens ?? 0),
+            0,
+          ),
+        },
+      }),
       summary: `Workflow run status: ${run.status}.`,
       evidence: logs.filter((log) =>
         observations.some((o) => o.log_id === log.id),
@@ -119,7 +143,21 @@ export class GeminiGroundedDiagnosticsService {
       limitations: [
         'The workflow investigator reviewed up to 20 recent warning or error logs. The runbook researcher reviewed up to five matching passages.',
       ],
-      nextSteps: [],
+      nextSteps: conflicts.length
+        ? ['Which runbook governs the affected environment and release window?']
+        : [
+            ...(!logs.length
+              ? [
+                  'Collect a warning or error log from the failed step, with its timestamp.',
+                ]
+              : []),
+            ...(!grounding.passages.length
+              ? [
+                  'Find the current runbook for this workflow and retry using terms from its text.',
+                ]
+              : []),
+          ],
+      ...(conflicts.length > 0 && { conflictingGuidance: conflicts }),
       grounding: {
         status: observations.length
           ? 'supported_observations'
@@ -134,17 +172,20 @@ export class GeminiGroundedDiagnosticsService {
     question: string,
     logs: DiagnosticLog[],
     grounding: GroundingContext,
-    signal: AbortSignal,
-  ): Promise<GroundedObservation[]> {
+    context: AgentContext,
+  ) {
     const controller = new AbortController();
-    const agentSignal = AbortSignal.any([signal, controller.signal]);
+    const agents = {
+      signal: AbortSignal.any([context.signal, controller.signal]),
+      usage: context.usage,
+    };
     try {
       const [logQuotes, passageQuotes] = await Promise.all([
         this.selectEvidence(
           'You are the workflow investigator. Select run log quotes that directly describe symptoms related to the question.',
           question,
           logs.map(({ id, message }) => ({ id, text: message })),
-          agentSignal,
+          agents,
         ),
         this.selectEvidence(
           'You are the runbook researcher. Select runbook quotes that provide diagnostic guidance relevant to the question.',
@@ -153,42 +194,80 @@ export class GeminiGroundedDiagnosticsService {
             id: chunkId,
             text: content,
           })),
-          agentSignal,
+          agents,
         ),
       ]);
-      if (!logQuotes.length || !passageQuotes.length) return [];
+      if (!logQuotes.length || !passageQuotes.length)
+        return { observations: [], conflicts: [] };
 
-      const { observations } = await this.requestAgent<{
+      const observationsOutput = responseSchema('observations', [
+        'claim',
+        'log_id',
+        'log_quote',
+        'passage_id',
+        'passage_quote',
+      ]);
+      const conflictOutput = responseSchema('conflicts', ['id', 'quote']);
+      const { observations, conflicts = [] } = await this.requestAgent<{
         observations: GroundedObservation[];
+        conflicts?: SelectedQuote[];
       }>(
         [
           'You are the synthesis agent. Pair relevant log and runbook quotes from the two provided evidence lists.',
           'Copy each selected ID and quote exactly. The claim must equal the selected log quote.',
           'Do not infer causes or verified fixes. Return an empty observations array if the evidence is unrelated or conflicting.',
+          'If distinct runbooks give contradictory instructions, report their exact selected passage IDs and quotes in conflicts; otherwise leave conflicts empty.',
         ].join(' '),
         { question, logQuotes, passageQuotes },
         synthesisSchema,
-        responseSchema('observations', [
-          'claim',
-          'log_id',
-          'log_quote',
-          'passage_id',
-          'passage_quote',
-        ]),
+        {
+          ...observationsOutput,
+          properties: {
+            ...observationsOutput.properties,
+            ...conflictOutput.properties,
+          },
+          required: [
+            ...observationsOutput.required,
+            ...conflictOutput.required,
+          ],
+        },
         2048,
-        agentSignal,
+        agents,
       );
-      return observations.filter(
-        (item) =>
-          hasGroundedSupport(item, logs, grounding.passages) &&
-          logQuotes.some(
-            ({ id, quote }) => id === item.log_id && quote === item.log_quote,
-          ) &&
+      const citedConflicts = conflicts.flatMap(({ id, quote }) => {
+        const passage = grounding.passages.find(
+          (entry) => entry.chunkId === id,
+        );
+        return passage &&
           passageQuotes.some(
-            ({ id, quote }) =>
-              id === item.passage_id && quote === item.passage_quote,
-          ),
-      );
+            (entry) => entry.id === id && entry.quote === quote,
+          )
+          ? [
+              {
+                sourceKey: passage.sourceKey,
+                version: passage.version,
+                passageId: id,
+                quote,
+              },
+            ]
+          : [];
+      });
+      if (new Set(citedConflicts.map(({ sourceKey }) => sourceKey)).size > 1)
+        return { observations: [], conflicts: citedConflicts };
+      return {
+        observations: observations.filter(
+          (item) =>
+            hasGroundedSupport(item, logs, grounding.passages) &&
+            logQuotes.some(
+              ({ id, quote }) => id === item.log_id && quote === item.log_quote,
+            ) &&
+            passageQuotes.some(
+              ({ id, quote }) =>
+                id === item.passage_id && quote === item.passage_quote,
+            ),
+        ),
+        conflicts: [],
+      };
     } finally {
       controller.abort();
     }
@@ -198,7 +277,7 @@ export class GeminiGroundedDiagnosticsService {
     instruction: string,
     question: string,
     sources: EvidenceText[],
-    signal: AbortSignal,
+    context: AgentContext,
   ): Promise<SelectedQuote[]> {
     const { evidence } = await this.requestAgent<{ evidence: SelectedQuote[] }>(
       instruction +
@@ -207,7 +286,7 @@ export class GeminiGroundedDiagnosticsService {
       selectionSchema,
       responseSchema('evidence', ['id', 'quote']),
       1024,
-      signal,
+      context,
     );
     return evidence.filter(({ id, quote }) =>
       sources.some((source) => source.id === id && source.text.includes(quote)),
@@ -220,11 +299,11 @@ export class GeminiGroundedDiagnosticsService {
     schema: Joi.ObjectSchema,
     jsonSchema: object,
     maxOutputTokens: number,
-    signal: AbortSignal,
+    context: AgentContext,
   ): Promise<T> {
     if (!this.client) throw new Error('Gemini grounding unavailable');
     const prompt = JSON.stringify(input);
-    const scope = providerScope(prompt, { signal });
+    const scope = providerScope(prompt, { signal: context.signal });
     try {
       const response = await scope.wait(
         this.client.models.generateContent({
@@ -251,6 +330,16 @@ export class GeminiGroundedDiagnosticsService {
       const raw: unknown = JSON.parse(scope.checkOutput(response.text));
       const { error, value } = schema.validate(raw, { convert: false });
       if (error) throw new Error('Invalid Gemini grounding response');
+      const { promptTokenCount, candidatesTokenCount, thoughtsTokenCount } =
+        response.usageMetadata ?? {};
+      context.usage.push(
+        promptTokenCount !== undefined && candidatesTokenCount !== undefined
+          ? {
+              inputTokens: promptTokenCount,
+              outputTokens: candidatesTokenCount + (thoughtsTokenCount ?? 0),
+            }
+          : undefined,
+      );
       return value as T;
     } finally {
       scope.close();
