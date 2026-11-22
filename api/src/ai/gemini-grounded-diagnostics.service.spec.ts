@@ -198,3 +198,80 @@ it('cancels the other specialist when one call fails', async () => {
   expect(create).toHaveBeenCalledTimes(2);
   expect(create.mock.calls[1][0].config.abortSignal.aborted).toBe(true);
 });
+
+it('replays the development and held-out snapshots through both strategies', async () => {
+  const { compareCase, loadCases } =
+    await import('../../scripts/agent-benchmark.mjs');
+  const fixtures = await loadCases();
+  expect(new Set(fixtures.map(({ split }) => split))).toEqual(
+    new Set(['development', 'heldout']),
+  );
+  const service = new GeminiGroundedDiagnosticsService(
+    new ConfigService({ GEMINI_API_KEY: 'synthetic' }),
+  );
+  for (const fixture of fixtures) {
+    for (const strategy of ['single', 'multi'] as const) {
+      create.mockReset();
+      const [passage] = fixture.passages;
+      if (fixture.log && passage) {
+        if (strategy === 'multi') {
+          create
+            .mockResolvedValueOnce(
+              modelResponse({
+                evidence: [{ id: 'log-1', quote: fixture.log }],
+              }),
+            )
+            .mockResolvedValueOnce(
+              modelResponse({
+                evidence: fixture.passages.map(({ id, quote }) => ({
+                  id,
+                  quote,
+                })),
+              }),
+            );
+        }
+        const observation = {
+          claim: fixture.log,
+          log_id: 'log-1',
+          log_quote: fixture.log,
+          passage_id: passage.id,
+          passage_quote: passage.quote,
+        };
+        create.mockResolvedValueOnce(
+          modelResponse({
+            observations:
+              fixture.expected === 'supported'
+                ? [observation, { ...observation, passage_id: 'foreign-lease' }]
+                : [],
+            conflicts:
+              fixture.expected === 'conflict'
+                ? fixture.passages.map(({ id, quote }) => ({ id, quote }))
+                : [],
+          }),
+        );
+      }
+      const outcome = await compareCase(service, fixture, strategy);
+      expect(outcome, fixture.id + ' ' + strategy).toMatchObject({
+        passed: true,
+        modelCalls:
+          fixture.log && passage ? (strategy === 'single' ? 1 : 3) : 0,
+        snapshotRecallAt5: fixture.id === 'synonym-keyword-miss' ? 0 : 1,
+      });
+    }
+  }
+  for (const strategy of ['single', 'multi'] as const) {
+    create
+      .mockReset()
+      .mockRejectedValueOnce(
+        Object.assign(new Error('provider unavailable'), { status: 503 }),
+      )
+      .mockImplementationOnce(() => new Promise(() => {}));
+    const result = await compareCase(service, fixtures[0], strategy);
+    expect(result).toMatchObject({
+      passed: false,
+      outcome: 'unavailable',
+      providerStatus: 503,
+      usage: null,
+    });
+  }
+});

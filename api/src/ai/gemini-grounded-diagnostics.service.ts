@@ -86,7 +86,8 @@ export class GeminiGroundedDiagnosticsService {
     run: Awaited<ReturnType<WorkflowRunService['findOne']>>,
     grounding: GroundingContext,
     signal: AbortSignal,
-  ): Promise<PythonDiagnosticReport> {
+    strategy: 'single' | 'multi' = 'multi',
+  ): Promise<PythonDiagnosticReport & { modelCalls: number }> {
     signal.throwIfAborted();
     const logs: DiagnosticLog[] = run.logs
       .filter((log) => ['ERROR', 'WARN'].includes(log.level))
@@ -101,7 +102,9 @@ export class GeminiGroundedDiagnosticsService {
     const canAnalyze = logs.length > 0 && grounding.passages.length > 0;
     const usage: AgentContext['usage'] = [];
     const { observations, conflicts } = canAnalyze
-      ? await this.runAgents(question, logs, grounding, { signal, usage })
+      ? await (strategy === 'single'
+          ? this.runSingle(question, logs, grounding, { signal, usage })
+          : this.runAgents(question, logs, grounding, { signal, usage }))
       : { observations: [], conflicts: [] };
     observations.sort(
       (a, b) =>
@@ -114,6 +117,7 @@ export class GeminiGroundedDiagnosticsService {
     const failed = ['FAILED', 'CANCELLED'].includes(run.status);
     return {
       organizationId,
+      modelCalls: usage.length,
       workflowRunId: run.id,
       executionStatus: run.status,
       analysisMode: canAnalyze ? 'llm' : 'deterministic',
@@ -141,7 +145,7 @@ export class GeminiGroundedDiagnosticsService {
           : 'The run status does not establish a failure.',
       },
       limitations: [
-        'The workflow investigator reviewed up to 20 recent warning or error logs. The runbook researcher reviewed up to five matching passages.',
+        'Evidence was limited to 20 recent warning or error logs and five matching runbook passages.',
       ],
       nextSteps: conflicts.length
         ? ['Which runbook governs the affected environment and release window?']
@@ -200,77 +204,126 @@ export class GeminiGroundedDiagnosticsService {
       if (!logQuotes.length || !passageQuotes.length)
         return { observations: [], conflicts: [] };
 
-      const observationsOutput = responseSchema('observations', [
-        'claim',
-        'log_id',
-        'log_quote',
-        'passage_id',
-        'passage_quote',
-      ]);
-      const conflictOutput = responseSchema('conflicts', ['id', 'quote']);
-      const { observations, conflicts = [] } = await this.requestAgent<{
-        observations: GroundedObservation[];
-        conflicts?: SelectedQuote[];
-      }>(
-        [
-          'You are the synthesis agent. Pair relevant log and runbook quotes from the two provided evidence lists.',
-          'Copy each selected ID and quote exactly. The claim must equal the selected log quote.',
-          'Do not infer causes or verified fixes. Return an empty observations array if the evidence is unrelated or conflicting.',
-          'If distinct runbooks give contradictory instructions, report their exact selected passage IDs and quotes in conflicts; otherwise leave conflicts empty.',
-        ].join(' '),
+      const output = await this.synthesize(
+        'You are the synthesis agent. Pair relevant log and runbook quotes from the two provided evidence lists.',
         { question, logQuotes, passageQuotes },
-        synthesisSchema,
-        {
-          ...observationsOutput,
-          properties: {
-            ...observationsOutput.properties,
-            ...conflictOutput.properties,
-          },
-          required: [
-            ...observationsOutput.required,
-            ...conflictOutput.required,
-          ],
-        },
-        2048,
         agents,
       );
-      const citedConflicts = conflicts.flatMap(({ id, quote }) => {
-        const passage = grounding.passages.find(
-          (entry) => entry.chunkId === id,
-        );
-        return passage &&
-          passageQuotes.some(
-            (entry) => entry.id === id && entry.quote === quote,
-          )
-          ? [
-              {
-                sourceKey: passage.sourceKey,
-                version: passage.version,
-                passageId: id,
-                quote,
-              },
-            ]
-          : [];
+      return this.validateSynthesis(output, logs, grounding, {
+        logQuotes,
+        passageQuotes,
       });
-      if (new Set(citedConflicts.map(({ sourceKey }) => sourceKey)).size > 1)
-        return { observations: [], conflicts: citedConflicts };
-      return {
-        observations: observations.filter(
-          (item) =>
-            hasGroundedSupport(item, logs, grounding.passages) &&
-            logQuotes.some(
-              ({ id, quote }) => id === item.log_id && quote === item.log_quote,
-            ) &&
-            passageQuotes.some(
-              ({ id, quote }) =>
-                id === item.passage_id && quote === item.passage_quote,
-            ),
-        ),
-        conflicts: [],
-      };
     } finally {
       controller.abort();
     }
+  }
+
+  private async runSingle(
+    question: string,
+    logs: DiagnosticLog[],
+    grounding: GroundingContext,
+    context: AgentContext,
+  ) {
+    const output = await this.synthesize(
+      'Select relevant log and runbook excerpts, then pair them in one response.',
+      {
+        question,
+        logs: logs.map(({ id, message }) => ({ id, text: message })),
+        passages: grounding.passages.map(({ chunkId, content }) => ({
+          id: chunkId,
+          text: content,
+        })),
+      },
+      context,
+    );
+    return this.validateSynthesis(output, logs, grounding);
+  }
+
+  private synthesize(
+    instruction: string,
+    input: object,
+    context: AgentContext,
+  ) {
+    const observationsOutput = responseSchema('observations', [
+      'claim',
+      'log_id',
+      'log_quote',
+      'passage_id',
+      'passage_quote',
+    ]);
+    const conflictOutput = responseSchema('conflicts', ['id', 'quote']);
+    return this.requestAgent<{
+      observations: GroundedObservation[];
+      conflicts?: SelectedQuote[];
+    }>(
+      [
+        instruction,
+        'Copy each selected ID and quote exactly. The claim must equal the selected log quote.',
+        'Do not infer causes or verified fixes. Return an empty observations array if the evidence is unrelated or conflicting.',
+        'If distinct runbooks give contradictory instructions, report their exact selected passage IDs and quotes in conflicts; otherwise leave conflicts empty.',
+      ].join(' '),
+      input,
+      synthesisSchema,
+      {
+        ...observationsOutput,
+        properties: {
+          ...observationsOutput.properties,
+          ...conflictOutput.properties,
+        },
+        required: [...observationsOutput.required, ...conflictOutput.required],
+      },
+      2048,
+      context,
+    );
+  }
+
+  private validateSynthesis(
+    {
+      observations,
+      conflicts = [],
+    }: {
+      observations: GroundedObservation[];
+      conflicts?: SelectedQuote[];
+    },
+    logs: DiagnosticLog[],
+    grounding: GroundingContext,
+    selected?: { logQuotes: SelectedQuote[]; passageQuotes: SelectedQuote[] },
+  ) {
+    const citedConflicts = conflicts.flatMap(({ id, quote }) => {
+      const passage = grounding.passages.find((entry) => entry.chunkId === id);
+      return passage &&
+        (!selected ||
+          selected.passageQuotes.some(
+            (entry) => entry.id === id && entry.quote === quote,
+          )) &&
+        passage.content.includes(quote)
+        ? [
+            {
+              sourceKey: passage.sourceKey,
+              version: passage.version,
+              passageId: id,
+              quote,
+            },
+          ]
+        : [];
+    });
+    if (new Set(citedConflicts.map(({ sourceKey }) => sourceKey)).size > 1)
+      return { observations: [], conflicts: citedConflicts };
+    return {
+      observations: observations.filter(
+        (item) =>
+          hasGroundedSupport(item, logs, grounding.passages) &&
+          (!selected ||
+            (selected.logQuotes.some(
+              ({ id, quote }) => id === item.log_id && quote === item.log_quote,
+            ) &&
+              selected.passageQuotes.some(
+                ({ id, quote }) =>
+                  id === item.passage_id && quote === item.passage_quote,
+              ))),
+      ),
+      conflicts: [],
+    };
   }
 
   private async selectEvidence(

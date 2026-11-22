@@ -1,0 +1,97 @@
+[
+  {
+    "id": "timeout",
+    "split": "development",
+    "question": "connection timeout",
+    "log": "Release worker connection timed out after retry.",
+    "passages": [
+      {
+        "id": "timeout-v2",
+        "key": "worker-timeout",
+        "version": 2,
+        "quote": "For a connection timeout, inspect broker connectivity."
+      }
+    ],
+    "relevant": ["timeout-v2"],
+    "expected": "supported"
+  },
+  {
+    "id": "missing-logs",
+    "split": "development",
+    "question": "connection timeout",
+    "passages": [
+      {
+        "id": "timeout-v2",
+        "key": "worker-timeout",
+        "version": 2,
+        "quote": "For a connection timeout, inspect broker connectivity."
+      }
+    ],
+    "relevant": ["timeout-v2"],
+    "expected": "abstain"
+  },
+  {
+    "id": "conflict",
+    "split": "development",
+    "question": "rollback window",
+    "log": "Release blocked by the rollback window policy.",
+    "passages": [
+      {
+        "id": "release",
+        "key": "release-policy",
+        "version": 1,
+        "quote": "During the rollback window, proceed after release lead approval."
+      },
+      {
+        "id": "freeze",
+        "key": "freeze-policy",
+        "version": 1,
+        "quote": "During the rollback window, do not proceed even after release lead approval."
+      }
+    ],
+    "relevant": ["release", "freeze"],
+    "expected": "conflict"
+  },
+  {
+    "id": "current-revision",
+    "split": "heldout",
+    "question": "registry timeout",
+    "log": "Container registry read timed out.",
+    "passages": [
+      {
+        "id": "registry-v2",
+        "key": "registry",
+        "version": 2,
+        "quote": "For registry timeouts, check the regional registry status."
+      }
+    ],
+    "relevant": ["registry-v2"],
+    "expected": "supported"
+  },
+  {
+    "id": "synonym-keyword-miss",
+    "split": "heldout",
+    "question": "broker unreachable",
+    "log": "Worker could not reach the broker.",
+    "passages": [],
+    "relevant": ["timeout-v2"],
+    "expected": "abstain"
+  },
+  {
+    "id": "foreign-citation",
+    "split": "heldout",
+    "question": "lease expiration",
+    "log": "Worker lease expired before completion.",
+    "passages": [
+      {
+        "id": "lease",
+        "key": "worker-lease",
+        "version": 1,
+        "quote": "For lease expiration, inspect the worker heartbeat history."
+      }
+    ],
+    "relevant": ["lease"],
+    "forbidden": ["foreign-lease"],
+    "expected": "supported"
+  }
+]
