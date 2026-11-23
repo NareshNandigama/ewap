@@ -327,6 +327,8 @@ with diagnostic answers is available through the opt-in
 live model acceptance remains pending after an HTTP 429 provider response.
 Implementation status and the
 next phases are tracked in [the engineering roadmap](docs/engineering-roadmap.md).
+[GitHub Actions CI and deployment images](docs/ci-cd.md) describes how to
+verify changes and publish a release candidate for AWS or Azure.
 An isolated Python Docker setup and live NestJS-to-Python verification command
 are documented in the service README. The complete isolated local stack is
 available through [full-stack Compose](docs/local-stack.md).

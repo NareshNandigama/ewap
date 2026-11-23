@@ -1,0 +1,100 @@
+name: Publish deployment images
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-images-${{ github.repository }}
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    uses: ./.github/workflows/ci.yml
+
+  images:
+    name: Publish ${{ matrix.image.name }}
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { name: api, context: api, dockerfile: api/Dockerfile }
+          - { name: migrate, context: api, dockerfile: api/Dockerfile, target: builder }
+          - { name: worker, context: ., dockerfile: worker/Dockerfile }
+          - { name: web, context: web, dockerfile: web/Dockerfile }
+          - { name: ai-service, context: ai-service, dockerfile: ai-service/Dockerfile }
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Log in to GitHub Container Registry
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
+      - name: Build and publish image
+        env:
+          IMAGE: ${{ matrix.image.name }}
+          BUILD_CONTEXT: ${{ matrix.image.context }}
+          DOCKERFILE: ${{ matrix.image.dockerfile }}
+          BUILD_TARGET: ${{ matrix.image.target }}
+          NEXT_PUBLIC_WEBSOCKET_URL: ${{ vars.NEXT_PUBLIC_WEBSOCKET_URL }}
+        run: |
+          repository="ghcr.io/${GITHUB_REPOSITORY,,}-$IMAGE"
+          options=()
+          if [[ -n "$BUILD_TARGET" ]]; then
+            options+=(--target "$BUILD_TARGET")
+          fi
+          if [[ "$IMAGE" == web ]]; then
+            options+=(--build-arg "NEXT_PUBLIC_WEBSOCKET_URL=$NEXT_PUBLIC_WEBSOCKET_URL")
+          fi
+          docker buildx build --platform linux/amd64 --push \
+            --file "$DOCKERFILE" --tag "$repository:sha-$GITHUB_SHA" \
+            --label "org.opencontainers.image.source=$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" \
+            --label "org.opencontainers.image.revision=$GITHUB_SHA" \
+            --metadata-file "$RUNNER_TEMP/image-metadata.json" \
+            "${options[@]}" "$BUILD_CONTEXT"
+          digest=$(jq -er '."containerimage.digest" | select(test("^sha256:[0-9a-f]{64}$"))' "$RUNNER_TEMP/image-metadata.json")
+          jq -n --arg name "$IMAGE" --arg ref "$repository@$digest" \
+            '{name: $name, ref: $ref}' > "$RUNNER_TEMP/$IMAGE.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: image-${{ matrix.image.name }}
+          path: ${{ runner.temp }}/${{ matrix.image.name }}.json
+          if-no-files-found: error
+
+  manifest:
+    name: Collect deployment image digests
+    needs: images
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: image-*
+          path: images
+          merge-multiple: true
+      - name: Write deployment manifest
+        run: |
+          jq -se --arg commit "$GITHUB_SHA" '
+            select((map(.name) | sort) == ["ai-service", "api", "migrate", "web", "worker"])
+            | {commit: $commit, images: (map({key: .name, value: .ref}) | from_entries)}
+          ' images/*.json > deployment-images.json
+          {
+            echo '## Deployment image references'
+            echo
+            jq -r '.images | to_entries[] | "- **" + .key + "** " + .value' deployment-images.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: deployment-images
+          path: deployment-images.json
+          if-no-files-found: error
